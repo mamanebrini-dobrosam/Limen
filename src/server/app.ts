@@ -15,6 +15,7 @@ import { contactsRouter, blocksRouter } from "./routes/contacts.js";
 import { roomsRouter } from "./routes/rooms.js";
 import { chatRouter } from "./routes/chat.js";
 import { contentRouter, reportsRouter, adminRouter } from "./routes/content.js";
+import { directChatRouter } from "./routes/direct-chat.js";
 import * as rules from "./services/rules.js";
 import * as sessions from "./services/sessions.js";
 
@@ -46,6 +47,7 @@ export function createApp() {
   app.use("/api/auth", authRouter);
   app.use("/api/me", meRouter);
   app.use("/api/contacts", contactsRouter);
+  app.use("/api/direct", directChatRouter);
   app.use("/api/blocks", blocksRouter);
   app.use("/api/reports", reportsRouter);
   app.use("/api/admin", adminRouter);

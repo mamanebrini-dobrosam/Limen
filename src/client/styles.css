@@ -240,3 +240,35 @@ img { max-width: 100%; display: block; }
 .display-img { max-height: 70dvh; margin: 0 auto; border-radius: 8px; }
 
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* ---------- Privatni razgovori ---------- */
+.direct-row { cursor: pointer; transition: background-color 160ms ease; }
+.direct-row:hover, .direct-row:focus-visible { background: rgba(235, 220, 200, 0.48); }
+.direct-avatar {
+  flex: 0 0 42px; width: 42px; height: 42px; display: grid; place-items: center;
+  border-radius: 50%; background: var(--kadulja); color: var(--krem); font-weight: 700;
+}
+.direct-summary { min-width: 0; flex: 1; }
+.direct-name { font-weight: 600; }
+.direct-preview { max-width: 34ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.direct-trailing { display: flex; flex-direction: column; align-items: flex-end; gap: 5px; }
+.direct-trailing .meta { font-size: 11px; white-space: nowrap; }
+.direct-thread {
+  display: flex; flex-direction: column; gap: 10px; min-height: 220px; max-height: min(56dvh, 620px);
+  overflow-y: auto; border: 1px solid var(--krem-2); border-radius: var(--radius-m);
+  background: rgba(255, 250, 243, 0.55); padding: 14px; scroll-behavior: smooth;
+}
+.direct-message { max-width: min(88%, 520px); align-self: flex-start; }
+.direct-message.mine { align-self: flex-end; text-align: right; }
+.direct-message p {
+  margin: 3px 0 0; padding: 9px 12px; border: 1px solid var(--krem-2); border-radius: 4px 14px 14px 14px;
+  background: #fffaf3; overflow-wrap: anywhere; white-space: pre-wrap;
+}
+.direct-message.mine p { text-align: left; background: var(--noc); color: var(--krem); border-color: var(--noc); border-radius: 14px 4px 14px 14px; }
+.direct-compose { margin-top: 12px; }
+.direct-compose .textarea { min-height: 72px; margin-bottom: 8px; }
+.direct-compose .textarea:disabled { opacity: .65; }
+@media (max-width: 480px) {
+  .direct-thread { max-height: 52dvh; padding: 10px; }
+  .direct-trailing .meta { max-width: 92px; white-space: normal; text-align: right; }
+}

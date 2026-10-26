@@ -54,6 +54,7 @@ export const config = {
     contactRequest: [int("RL_CONTACT_REQUEST", 20), 24 * 60 * 60],
     invite: [int("RL_INVITE", 30), 60 * 60],
     message: [int("RL_MESSAGE", 30), 60],
+    directRequest: [int("RL_DIRECT_REQUEST", 10), 24 * 60 * 60],
     upload: [int("RL_UPLOAD", 10), 60],
     report: [int("RL_REPORT", 10), 24 * 60 * 60],
     passwordReset: [int("RL_PASSWORD_RESET", 5), 60 * 60],

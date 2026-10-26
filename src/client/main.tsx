@@ -9,6 +9,7 @@ import { RoomView } from "./pages/Room";
 import { RoomEditor } from "./pages/RoomEditor";
 import { Settings } from "./pages/Settings";
 import { Admin } from "./pages/Admin";
+import { DirectChats, DirectConversation, DirectRequests } from "./pages/DirectChat";
 import "./styles.css";
 
 function Protected({ children }: { children: React.ReactNode }) {
@@ -33,6 +34,9 @@ function App() {
           <Route path="/" element={<Protected><Home /></Protected>} />
           <Route path="/kontakti" element={<Protected><Contacts /></Protected>} />
           <Route path="/c/:qrId" element={<Protected><ConnectByQr /></Protected>} />
+          <Route path="/chat" element={<Protected><DirectChats /></Protected>} />
+          <Route path="/chat/zahtjevi" element={<Protected><DirectRequests /></Protected>} />
+          <Route path="/chat/:id" element={<Protected><DirectConversation /></Protected>} />
           <Route path="/moja-soba" element={<Protected><RoomEditor /></Protected>} />
           <Route path="/sto/:sessionId" element={<Protected><RoomView /></Protected>} />
           <Route path="/postavke" element={<Protected><Settings /></Protected>} />

@@ -37,6 +37,34 @@ dependencies, applies migrations to the development database, and builds the
 client. Workflow reconciliation then restarts the running application.
 The hook is non-interactive and refuses to run with `NODE_ENV=production`.
 
+## LIMEN Chat
+
+- Private two-person conversations are separate from the existing room/table
+  conversations. Contact approval and room admission do not grant private-chat
+  access, and private-chat approval does not grant room access.
+- The existing owner QR link opens an already approved, unexpired private chat
+  or offers a manual access request. Reciprocal scans never auto-approve a chat.
+- A verified account is required. Only the request recipient can approve or
+  reject it. Pending duplicates reuse the same request; rejected pairs must
+  wait 24 hours before requesting again. `RL_DIRECT_REQUEST` defaults to 10
+  attempts per user per day, in addition to the existing message rate limit.
+- Messages live in PostgreSQL, not browser memory. Realtime events carry IDs
+  and notification metadata, not message text. Message contents are not
+  end-to-end encrypted; access is controlled by authenticated server routes.
+- Opening, reading, logging out and reconnecting do not extend retention.
+  A message from either participant sets the 30-day deadline. A chat without
+  its first message expires 30 days after approval.
+- A server-side cleanup runs on startup and every minute. It deletes expired
+  direct chats, their messages, associated approval requests and linked
+  notifications. API access and lists enforce the deadline even between runs.
+  Room/table histories are not affected by this cleanup.
+- Account export includes accessible private-chat data. Account deletion
+  cascades through private chats and their messages; blocking prevents both
+  participants from reading or sending in the private chat.
+- Apply the checked-in Drizzle migration to development with `npm run db:migrate`.
+  Replit Publish applies the development schema to managed production; do not
+  run migrations from the production entrypoint.
+
 ## Before publishing
 
 - Set `APP_URL` to the confirmed published URL and configure real SMTP delivery

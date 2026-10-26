@@ -1,12 +1,13 @@
 import { Router } from "express";
 import { z } from "zod";
-import { and, eq, or, ilike, inArray } from "drizzle-orm";
+import { and, eq, or, ilike, inArray, sql } from "drizzle-orm";
 import { db, schema } from "../db/client.js";
 import { ah, bad, forbidden, notFound, orderedPair, uuidSchema } from "../lib/core.js";
 import { rateLimit, notify, hub } from "../lib/infra.js";
 import { requireVerified, me } from "../lib/auth.js";
 import * as rules from "../services/rules.js";
 import { endSeat, broadcastState } from "../services/sessions.js";
+import { lockDirectPair } from "../services/direct-chat.js";
 
 const s = schema;
 export const contactsRouter = Router();
@@ -147,7 +148,13 @@ export async function blockUser(meId: string, target: string) {
   const [ua, ub] = orderedPair(meId, target);
   const affected: { sessionId: string; userId: string }[] = [];
   await db.transaction(async (tx) => {
+    await lockDirectPair(tx, ua, ub);
     await tx.insert(s.blocks).values({ blockerId: meId, blockedId: target }).onConflictDoNothing();
+    const cancelledRequests = await tx.delete(s.directRequests).where(and(eq(s.directRequests.userA, ua), eq(s.directRequests.userB, ub), eq(s.directRequests.status, "pending"))).returning();
+    if (cancelledRequests.length) await tx.delete(s.notifications).where(and(
+      eq(s.notifications.type, "direct_request"),
+      inArray(sql<string>`${s.notifications.payload}->>'requestId'`, cancelledRequests.map((r) => r.id)),
+    ));
     await tx.delete(s.contacts).where(and(eq(s.contacts.userA, ua), eq(s.contacts.userB, ub)));
     for (const [host, guest] of [[meId, target], [target, meId]] as const) {
       const sess = await rules.getOpenSessionOfHost(host, tx);
@@ -160,6 +167,7 @@ export async function blockUser(meId: string, target: string) {
       if (ended) affected.push({ sessionId: sess.id, userId: guest });
     }
   });
+  hub.toUsers([meId, target], "direct:changed", {});
   for (const a of affected) {
     await hub.disconnectUserFromSession(a.userId, a.sessionId);
     hub.toUser(a.userId, "session:left", { sessionId: a.sessionId, reason: "blocked" });

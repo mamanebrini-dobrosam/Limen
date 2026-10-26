@@ -1,7 +1,7 @@
 import { sql } from "drizzle-orm";
 import {
   pgTable, uuid, text, timestamp, boolean, integer, date, jsonb,
-  primaryKey, uniqueIndex, index, check,
+  primaryKey, uniqueIndex, index, check, bigserial, bigint,
 } from "drizzle-orm/pg-core";
 
 const id = () => uuid("id").primaryKey().defaultRandom();
@@ -195,6 +195,46 @@ export const roomItems = pgTable("room_items", {
   position: integer("position").notNull().default(0),
   createdAt: createdAt(),
 });
+
+// ---------- Trajni razgovori dvije osobe (odvojeni od stolova) ----------
+export const directConversations = pgTable("direct_conversations", {
+  id: id(),
+  userA: uuid("user_a").notNull().references(() => users.id, { onDelete: "cascade" }),
+  userB: uuid("user_b").notNull().references(() => users.id, { onDelete: "cascade" }),
+  userAReadId: bigint("user_a_read_id", { mode: "number" }).notNull().default(0),
+  userBReadId: bigint("user_b_read_id", { mode: "number" }).notNull().default(0),
+  createdAt: createdAt(),
+  lastMessageAt: ts("last_message_at"),
+}, (t) => [
+  uniqueIndex("direct_conversations_pair_uq").on(t.userA, t.userB),
+  check("direct_conversations_order_ck", sql`${t.userA} < ${t.userB}`),
+  index("direct_conversations_expiry_idx").on(sql`coalesce(${t.lastMessageAt}, ${t.createdAt})`),
+]);
+
+export const directRequests = pgTable("direct_requests", {
+  id: id(),
+  userA: uuid("user_a").notNull().references(() => users.id, { onDelete: "cascade" }),
+  userB: uuid("user_b").notNull().references(() => users.id, { onDelete: "cascade" }),
+  requesterId: uuid("requester_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  ownerId: uuid("owner_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  status: text("status", { enum: ["pending", "approved", "rejected"] }).notNull().default("pending"),
+  conversationId: uuid("conversation_id").references(() => directConversations.id, { onDelete: "cascade" }),
+  createdAt: createdAt(),
+  decidedAt: ts("decided_at"),
+}, (t) => [
+  uniqueIndex("direct_requests_pair_uq").on(t.userA, t.userB),
+  check("direct_requests_participants_ck", sql`${t.userA} < ${t.userB} and (
+    (${t.requesterId} = ${t.userA} and ${t.ownerId} = ${t.userB}) or
+    (${t.requesterId} = ${t.userB} and ${t.ownerId} = ${t.userA}))`),
+]);
+
+export const directMessages = pgTable("direct_messages", {
+  id: bigserial("id", { mode: "number" }).primaryKey(),
+  conversationId: uuid("conversation_id").notNull().references(() => directConversations.id, { onDelete: "cascade" }),
+  senderId: uuid("sender_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  body: text("body").notNull(),
+  createdAt: createdAt(),
+}, (t) => [index("direct_messages_conversation_idx").on(t.conversationId, t.id)]);
 
 // ---------- Obavijesti, prijave, administracija ----------
 export const notifications = pgTable("notifications", {

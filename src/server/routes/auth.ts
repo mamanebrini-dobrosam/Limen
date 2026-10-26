@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { z } from "zod";
-import { and, eq, gt, isNull, desc } from "drizzle-orm";
+import { and, eq, gt, isNull, desc, or, inArray, sql } from "drizzle-orm";
 import { hash, verify } from "@node-rs/argon2";
 import crypto from "node:crypto";
 import { config } from "../config.js";
@@ -11,6 +11,7 @@ import { createSession, setSessionCookie, requireUser, me, SESSION_COOKIE } from
 import { closeSession, endSeat } from "../services/sessions.js";
 import * as rules from "../services/rules.js";
 import { deleteAssetFile } from "../lib/media.js";
+import { exportDirectData } from "../services/direct-chat.js";
 
 const s = schema;
 export const authRouter = Router();
@@ -186,6 +187,7 @@ meRouter.get("/export", ah(async (req, res) => {
   res.json({
     exportedAt: new Date().toISOString(),
     account: { email: u.email, displayName: u.displayName, birthDate: u.birthDate, createdAt: u.createdAt, qrId: u.qrId },
+    directChat: await exportDirectData(u.id),
     contacts: [...contactsA, ...contactsB], messagesWritten: myMessages, roomItems: items, blocks: blocksMade, reports: reportsMade,
   });
 }));
@@ -205,7 +207,18 @@ meRouter.delete("/", ah(async (req, res) => {
     // Novi nasumični ID; ne čuva se nikakva veza s obrisanim nalogom.
     await tx.update(s.messages).set({ authorUserId: null, anonymousAuthorId: crypto.randomUUID() }).where(eq(s.messages.authorUserId, u.id));
     for (const f of files) await tx.delete(s.mediaAssets).where(eq(s.mediaAssets.id, f.id));
-    await tx.delete(s.users).where(eq(s.users.id, u.id)); // kaskadno briše sobu, kontakte, sesije, blokade...
+    const chats = await tx.select({ id: s.directConversations.id }).from(s.directConversations)
+      .where(or(eq(s.directConversations.userA, u.id), eq(s.directConversations.userB, u.id)));
+    const requests = await tx.select({ id: s.directRequests.id }).from(s.directRequests)
+      .where(or(eq(s.directRequests.ownerId, u.id), eq(s.directRequests.requesterId, u.id)));
+    if (chats.length || requests.length) await tx.delete(s.notifications).where(and(
+      sql`${s.notifications.type} like 'direct\\_%' escape '\\'`,
+      or(
+        chats.length ? inArray(sql<string>`${s.notifications.payload}->>'conversationId'`, chats.map((c) => c.id)) : undefined,
+        requests.length ? inArray(sql<string>`${s.notifications.payload}->>'requestId'`, requests.map((r) => r.id)) : undefined,
+      ),
+    ));
+    await tx.delete(s.users).where(eq(s.users.id, u.id)); // kaskadno briše sobu, kontakte, sesije, blokade i privatni chat
   });
   for (const f of files) await deleteAssetFile(f.key);
   await hub.logoutUser(u.id);
