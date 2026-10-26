@@ -199,6 +199,10 @@ export const roomItems = pgTable("room_items", {
 // ---------- Trajni razgovori dvije osobe (odvojeni od stolova) ----------
 export const directConversations = pgTable("direct_conversations", {
   id: id(),
+  // Older chats resolve ownership from their original approved request.
+  ownerId: uuid("owner_id").references(() => users.id, { onDelete: "cascade" }),
+  guestLimit: integer("guest_limit").default(2),
+  guestStreak: integer("guest_streak").notNull().default(0),
   userA: uuid("user_a").notNull().references(() => users.id, { onDelete: "cascade" }),
   userB: uuid("user_b").notNull().references(() => users.id, { onDelete: "cascade" }),
   userAReadId: bigint("user_a_read_id", { mode: "number" }).notNull().default(0),
@@ -208,6 +212,8 @@ export const directConversations = pgTable("direct_conversations", {
 }, (t) => [
   uniqueIndex("direct_conversations_pair_uq").on(t.userA, t.userB),
   check("direct_conversations_order_ck", sql`${t.userA} < ${t.userB}`),
+  check("direct_conversations_owner_ck", sql`${t.ownerId} in (${t.userA}, ${t.userB})`),
+  check("direct_conversations_limit_ck", sql`(${t.guestLimit} is null or ${t.guestLimit} between 1 and 1000) and ${t.guestStreak} >= 0`),
   index("direct_conversations_expiry_idx").on(sql`coalesce(${t.lastMessageAt}, ${t.createdAt})`),
 ]);
 
@@ -235,6 +241,36 @@ export const directMessages = pgTable("direct_messages", {
   body: text("body").notNull(),
   createdAt: createdAt(),
 }, (t) => [index("direct_messages_conversation_idx").on(t.conversationId, t.id)]);
+
+// Anonymous identities exist only inside their own chat; they are not user accounts.
+export const visitorChats = pgTable("visitor_chats", {
+  id: id(),
+  ownerId: uuid("owner_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  tokenHash: text("token_hash").notNull().unique(),
+  displayName: text("display_name").notNull(),
+  status: text("status", { enum: ["pending", "approved", "rejected"] }).notNull().default("pending"),
+  linkedUserId: uuid("linked_user_id").references(() => users.id, { onDelete: "cascade" }),
+  roomOfferSessionId: uuid("room_offer_session_id").references(() => roomSessions.id, { onDelete: "set null" }),
+  guestLimit: integer("guest_limit").default(2),
+  guestStreak: integer("guest_streak").notNull().default(0),
+  ownerReadId: bigint("owner_read_id", { mode: "number" }).notNull().default(0),
+  guestReadId: bigint("guest_read_id", { mode: "number" }).notNull().default(0),
+  createdAt: createdAt(),
+  approvedAt: ts("approved_at"),
+  decidedAt: ts("decided_at"),
+  lastMessageAt: ts("last_message_at"),
+}, (t) => [index("visitor_chats_owner_idx").on(t.ownerId),
+  index("visitor_chats_expiry_idx").on(sql`coalesce(${t.lastMessageAt}, ${t.approvedAt}, ${t.createdAt})`),
+  check("visitor_chats_limit_ck", sql`(${t.guestLimit} is null or ${t.guestLimit} between 1 and 1000) and ${t.guestStreak} >= 0`),
+]);
+
+export const visitorMessages = pgTable("visitor_messages", {
+  id: bigserial("id", { mode: "number" }).primaryKey(),
+  chatId: uuid("chat_id").notNull().references(() => visitorChats.id, { onDelete: "cascade" }),
+  sender: text("sender", { enum: ["owner", "guest"] }).notNull(),
+  body: text("body").notNull(),
+  createdAt: createdAt(),
+}, (t) => [index("visitor_messages_chat_idx").on(t.chatId, t.id)]);
 
 // ---------- Obavijesti, prijave, administracija ----------
 export const notifications = pgTable("notifications", {

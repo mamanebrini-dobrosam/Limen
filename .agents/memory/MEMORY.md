@@ -1,1 +1,2 @@
 - [Private media storage](private-media-storage.md) — keep object storage private and serve images only after the existing server-side authorization checks.
+- [Browser testing](browser-testing.md) — the testing-subagent configuration may be unavailable; use real local Playwright checks rather than skipping browser verification.

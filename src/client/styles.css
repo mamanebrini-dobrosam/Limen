@@ -253,6 +253,46 @@ img { max-width: 100%; display: block; }
 .direct-preview { max-width: 34ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .direct-trailing { display: flex; flex-direction: column; align-items: flex-end; gap: 5px; }
 .direct-trailing .meta { font-size: 11px; white-space: nowrap; }
+
+/* Gostujući LIMEN: otvoren prag, identitet vezan za preglednik */
+.visitor-kicker {
+  margin: 16px 0 4px; color: var(--kadulja-tamna); font-size: 11px; font-weight: 700;
+  letter-spacing: .16em;
+}
+.scanner-frame {
+  position: relative; overflow: hidden; aspect-ratio: 4 / 3; margin: 20px 0 14px;
+  border-radius: var(--radius-m); background: var(--noc-2); border: 1px solid rgba(38,56,74,.2);
+}
+.scanner-frame video { width: 100%; height: 100%; object-fit: cover; }
+.scanner-placeholder {
+  position: absolute; inset: 0; display: grid; place-items: center; padding: 24px;
+  text-align: center; color: var(--krem); background:
+    linear-gradient(135deg, rgba(38,56,74,.96), rgba(58,40,31,.86));
+}
+.scanner-upload { position: relative; overflow: hidden; }
+.scanner-upload input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.visitor-fallback { margin: 24px 0; padding-top: 18px; border-top: 1px solid var(--krem-2); }
+.visitor-links { display: flex; gap: 9px; flex-wrap: wrap; margin: 18px 0; }
+.visitor-chat-page { padding-bottom: 120px; }
+.visitor-thread { margin: 16px 0 12px; }
+.visitor-controls {
+  margin: 18px 0; padding: 16px; border: 1px solid var(--krem-2);
+  border-radius: var(--radius-m); background: rgba(235,220,200,.32);
+}
+.visitor-controls .field { margin: 0; flex: 1; min-width: 150px; }
+.visitor-limit { max-width: 250px; }
+.visitor-actions { margin: 14px 0; }
+.visitor-offer { margin: 18px 0; }
+.visitor-offer p { margin: 8px 0 12px; }
+.visitor-avatar { background: var(--orah); }
+.visitor-tag {
+  margin-left: 6px; padding: 2px 6px; border-radius: 10px; color: var(--kadulja-tamna);
+  background: rgba(130,146,123,.16); font-size: 11px; font-weight: 600;
+}
+@media (max-width: 480px) {
+  .visitor-actions .btn { flex: 1 1 100%; }
+  .visitor-controls > .btn { width: 100%; }
+}
 .direct-thread {
   display: flex; flex-direction: column; gap: 10px; min-height: 220px; max-height: min(56dvh, 620px);
   overflow-y: auto; border: 1px solid var(--krem-2); border-radius: var(--radius-m);

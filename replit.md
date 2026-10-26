@@ -44,7 +44,7 @@ The hook is non-interactive and refuses to run with `NODE_ENV=production`.
   access, and private-chat approval does not grant room access.
 - The existing owner QR link opens an already approved, unexpired private chat
   or offers a manual access request. Reciprocal scans never auto-approve a chat.
-- A verified account is required. Only the request recipient can approve or
+- For registered-user chats a verified account is required. Only the request recipient can approve or
   reject it. Pending duplicates reuse the same request; rejected pairs must
   wait 24 hours before requesting again. `RL_DIRECT_REQUEST` defaults to 10
   attempts per user per day, in addition to the existing message rate limit.
@@ -64,6 +64,41 @@ The hook is non-interactive and refuses to run with `NODE_ENV=production`.
 - Apply the checked-in Drizzle migration to development with `npm run db:migrate`.
   Replit Publish applies the development schema to managed production; do not
   run migrations from the production entrypoint.
+
+## Guests without profiles and room invitations
+
+- `/skeniraj` is public: camera, uploaded QR image and a same-origin LIMEN QR
+  link/code are supported. `/c/:qrId` allows a visitor to request a chat with
+  a nickname without creating a user account.
+- Guest identities are separate from registered users. Each owner/chat identity
+  is authenticated by a random HttpOnly, SameSite cookie scoped to `/api/visitor`;
+  only its SHA-256 hash is stored in the database. Neither a public QR nor a
+  conversation ID is an access credential. The same browser/cookies are needed
+  to resume at `/gost-razgovori`; deleting cookies loses guest access.
+- Owners manually approve/reject visitor requests through Chat requests.
+  Guests poll for decisions and replies, only while the page is visible.
+  Pending/rejected requests cannot send messages.
+- Guests (including registered QR requesters) default to two consecutive
+  messages. An owner reply resets the counter. The owner can raise the per-chat
+  limit or leave it unlimited; counters are enforced under database row locks.
+  Existing protective request/message rate limits remain enabled for everyone.
+- A small-chat room offer grants no room access. Before a visitor can receive
+  a real invitation, they register, verify email, confirm their current password
+  to link the guest identity, and obtain normal contact approval. The existing
+  room invitation, entry request and host approval remain mandatory.
+- Room permissions still end immediately on leave/removal/closure and do not
+  affect the small chat. No room/table admission or sharing rules were replaced.
+- Visitors have the same 30-day message inactivity retention; reading,
+  approving room offers and changing limits do not extend the timer.
+- Legacy registered chats resolve their owner from the original approved
+  request when the newly added nullable owner field is unset. This avoids a
+  mandatory-column backfill during publishing and preserves existing data.
+- `node tests/browser-visitor.mjs` runs the development-only two-context browser
+  journey with system Chromium and synthetic accounts. Never use it in production.
+  Temporary fixtures and screenshots stay under `/tmp`, not in the repository.
+  It checks QR-image decoding, anonymous approval, limits, profile creation,
+  identity confirmation, separate room admission and revocation. Real-device
+  camera hardware is not covered by this automated test.
 
 ## Before publishing
 

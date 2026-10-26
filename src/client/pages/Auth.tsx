@@ -3,6 +3,19 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { api, ApiError, type User } from "../api";
 import { useAuth } from "../shell";
 
+function safeReturn(value: string | null | undefined) {
+  return value && value.startsWith("/") && !value.startsWith("//") && !/[\\\u0000-\u0020]/.test(value) ? value : "/";
+}
+function returnPath(params: URLSearchParams) {
+  const fromQuery = params.get("dalje");
+  if (fromQuery) {
+    const safe = safeReturn(fromQuery);
+    if (safe !== "/") sessionStorage.setItem("limen:return", safe);
+    return safe;
+  }
+  return safeReturn(sessionStorage.getItem("limen:return"));
+}
+
 function AuthFrame({ title, lead, children }: { title: string; lead?: string; children: React.ReactNode }) {
   return (
     <div className="shell">
@@ -37,7 +50,7 @@ export function Login() {
     <AuthFrame title="Prijava" lead="Uđi u svoj LIMEN.">
       <form onSubmit={(e) => { e.preventDefault(); f.run(async () => {
         const r = await api.post<{ user: User }>("/auth/login", { email, password });
-        setUser(r.user); nav(params.get("dalje") || "/");
+        const next = returnPath(params); setUser(r.user); nav(next);
       }); }}>
         <label className="field"><span>Email</span><input className="input" type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} /></label>
         <label className="field"><span>Lozinka</span><input className="input" type="password" autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} /></label>
@@ -45,9 +58,10 @@ export function Login() {
         <button className="btn block" disabled={f.busy}>Prijavi se</button>
       </form>
       <p className="row" style={{ justifyContent: "space-between", marginTop: 18 }}>
-        <Link to="/registracija">Napravi nalog</Link>
+        <Link to={`/registracija?dalje=${encodeURIComponent(safeReturn(params.get("dalje")))}`}>Napravi nalog</Link>
         <Link to="/zaboravljena-lozinka">Zaboravljena lozinka</Link>
       </p>
+      <p className="meta"><Link to="/skeniraj">Skeniraj QR kod</Link> · <Link to="/gost-razgovori">Gostujući razgovori</Link></p>
     </AuthFrame>
   );
 }
@@ -62,6 +76,7 @@ export function Register() {
     <AuthFrame title="Novi nalog" lead="LIMEN je privatni dom: ti odlučuješ ko prelazi prag. Trenutno je dostupan osobama od 18 godina i starijim.">
       <form onSubmit={(e) => { e.preventDefault(); f.run(async () => {
         const r = await api.post<{ user: User }>("/auth/register", v);
+        returnPath(new URLSearchParams(window.location.search));
         setUser(r.user); nav("/potvrda");
       }); }}>
         <label className="field"><span>Ime koje drugi vide</span><input className="input" required minLength={2} maxLength={40} value={v.displayName} onChange={set("displayName")} /></label>
@@ -89,11 +104,11 @@ export function Verify() {
       .then(async () => { setMsg({ ok: true, text: "Email je potvrđen." }); await refresh(); })
       .catch((e) => setMsg({ ok: false, text: e.message }));
   }, [token, refresh]);
-  if (user?.emailVerified && !token) { nav("/"); return null; }
+  if (user?.emailVerified && !token) { nav(safeReturn(sessionStorage.getItem("limen:return"))); return null; }
   return (
     <AuthFrame title="Potvrdi email" lead={user ? `Poslali smo link na ${user.email}. Otvori ga da potvrdiš adresu.` : undefined}>
       {msg && <p className={`notice ${msg.ok ? "ok" : "error"}`}>{msg.text}</p>}
-      {msg?.ok && <Link className="btn block" to="/">Nastavi</Link>}
+      {msg?.ok && <Link className="btn block" to={safeReturn(sessionStorage.getItem("limen:return"))} onClick={() => sessionStorage.removeItem("limen:return")}>Nastavi</Link>}
       {user && !user.emailVerified && !msg?.ok && (
         <div className="stack">
           <button className="btn ghost block" onClick={() => api.post("/auth/resend-verification").then(() => setMsg({ ok: true, text: "Novi link je poslan." })).catch((e) => setMsg({ ok: false, text: e.message }))}>Pošalji link ponovo</button>

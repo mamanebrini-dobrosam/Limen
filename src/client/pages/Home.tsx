@@ -17,6 +17,10 @@ function describe(n: Notification): string {
     case "direct_approved": return `${p.displayName} je odobrio/la privatni razgovor.`;
     case "direct_rejected": return "Zahtjev za privatni razgovor nije odobren.";
     case "direct_message": return `${p.displayName} ti je poslao/la poruku.`;
+    case "visitor_request": return `${p.displayName} želi započeti gostujući razgovor.`;
+    case "visitor_approved": return `${p.displayName} je odobrio/la gostujući razgovor.`;
+    case "visitor_rejected": return "Gostujući zahtjev za razgovor nije odobren.";
+    case "visitor_message": return `${p.displayName} ti je poslao/la poruku.`;
     case "invitation": return `${p.hostName} te poziva za svoj sto.`;
     case "entry_request": return `${p.displayName} traži ulazak u tvoju sobu.`;
     case "entry_rejected": return "Domaćin nije odobrio ulazak.";
@@ -130,6 +134,8 @@ export function Home() {
               </div>
               {n.type === "contact_request" && <Link className="btn small ghost" to="/kontakti">Pogledaj</Link>}
               {n.type === "direct_request" && <Link className="btn small ghost" to="/chat/zahtjevi">Pogledaj</Link>}
+              {n.type === "visitor_request" && <Link className="btn small ghost" to="/chat/zahtjevi">Pogledaj</Link>}
+              {["visitor_approved", "visitor_rejected", "visitor_message"].includes(n.type) && n.payload.visitorChatId && <Link className="btn small ghost" to={`/gost-chat/${n.payload.visitorChatId}`}>Otvori razgovor</Link>}
               {(n.type === "direct_approved" || n.type === "direct_message") && n.payload.conversationId && <Link className="btn small ghost" to={`/chat/${n.payload.conversationId}`}>Otvori razgovor</Link>}
               {n.type === "direct_rejected" && <Link className="btn small ghost" to="/chat/zahtjevi">Pogledaj zahtjeve</Link>}
               {n.type === "entry_request" && status?.hostingSessionId && <Link className="btn small ghost" to={`/sto/${status.hostingSessionId}`}>Za sto</Link>}

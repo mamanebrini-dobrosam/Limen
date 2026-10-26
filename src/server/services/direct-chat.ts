@@ -2,7 +2,8 @@ import { and, eq, or, sql, inArray, desc, lt } from "drizzle-orm";
 import { db, schema as s, type Tx } from "../db/client.js";
 import { bad, conflict, forbidden, notFound, orderedPair } from "../lib/core.js";
 import { hub } from "../lib/infra.js";
-import { isBlockedEither } from "./rules.js";
+import { isBlockedEither, getOpenSessionOfHost, isActiveContact } from "./rules.js";
+import { cleanupVisitorChats } from "./visitor-chat.js";
 
 export const DIRECT_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
 const REJECTION_COOLDOWN_MS = 24 * 60 * 60 * 1000;
@@ -44,6 +45,7 @@ function emit(notes: Note[], users: string[], conversationId?: string) {
 
 /** DELETE rechecks the deadline after waiting for a concurrent sender's row lock. */
 export async function cleanupDirectChats() {
+  await cleanupVisitorChats();
   const expired = await db.transaction(async (tx) => {
     const rows = await tx.delete(s.directConversations)
       .where(sql`coalesce(${s.directConversations.lastMessageAt}, ${s.directConversations.createdAt}) <= now() - interval '30 days'`)
@@ -118,7 +120,7 @@ export async function decideDirectRequest(userId: string, id: string, approve: b
     if (await isBlockedEither(r.ownerId, r.requesterId, tx)) throw forbidden("Razgovor trenutno nije dostupan.");
     let conversationId: string | null = null;
     if (approve) {
-      const [chat] = await tx.insert(s.directConversations).values({ userA: r.userA, userB: r.userB }).returning();
+      const [chat] = await tx.insert(s.directConversations).values({ userA: r.userA, userB: r.userB, ownerId: r.ownerId }).returning();
       conversationId = chat.id;
     }
     await tx.update(s.directRequests).set({ status: approve ? "approved" : "rejected", decidedAt: new Date(), conversationId })
@@ -175,12 +177,16 @@ export async function exportDirectData(userId: string) {
   return { conversations, messages, requests: await listDirectRequests(userId) };
 }
 
-async function allowedChat(tx: Tx, userId: string, id: string): Promise<Chat> {
+async function allowedChat(tx: Tx, userId: string, id: string): Promise<Chat & { ownerId: string }> {
   const [c] = await tx.select().from(s.directConversations)
     .where(and(eq(s.directConversations.id, id), member(userId), liveDirectChat)).for("update");
   if (!c) throw notFound("Razgovor nije dostupan ili je istekao.");
   if (await isBlockedEither(c.userA, c.userB, tx)) throw notFound("Razgovor nije dostupan ili je istekao.");
-  return c;
+  if (c.ownerId) return { ...c, ownerId: c.ownerId };
+  const [approved] = await tx.select({ ownerId: s.directRequests.ownerId }).from(s.directRequests)
+    .where(and(eq(s.directRequests.conversationId, c.id), eq(s.directRequests.status, "approved")));
+  if (!approved) throw notFound("Vlasništvo razgovora nije potvrđeno.");
+  return { ...c, ownerId: approved.ownerId };
 }
 
 export async function directHistory(userId: string, id: string, before?: number) {
@@ -188,10 +194,17 @@ export async function directHistory(userId: string, id: string, before?: number)
     const c = await allowedChat(tx, userId, id);
     const [peer] = await tx.select({ id: s.users.id, displayName: s.users.displayName }).from(s.users)
       .where(eq(s.users.id, c.userA === userId ? c.userB : c.userA));
+    const [peerUser] = await tx.select({ qrId: s.users.qrId }).from(s.users).where(eq(s.users.id, peer.id));
+    const session = await getOpenSessionOfHost(c.ownerId, tx);
+    const guestUserId = c.ownerId === c.userA ? c.userB : c.userA;
     const rows = await tx.select().from(s.directMessages).where(and(
       eq(s.directMessages.conversationId, id), before ? lt(s.directMessages.id, before) : undefined,
     )).orderBy(desc(s.directMessages.id)).limit(51);
-    return { conversation: { id, peer, createdAt: c.createdAt, lastMessageAt: c.lastMessageAt },
+    return { conversation: { id, peer, ownerId: c.ownerId, guestLimit: c.guestLimit, guestStreak: c.guestStreak,
+      remaining: c.guestLimit === null ? null : Math.max(0, c.guestLimit - c.guestStreak),
+      peerQrId: peerUser.qrId,
+      roomInvite: { sessionId: session?.id ?? null, guestUserId, isContact: await isActiveContact(c.ownerId, guestUserId, tx) },
+      createdAt: c.createdAt, lastMessageAt: c.lastMessageAt },
       messages: rows.slice(0, 50).reverse(), hasMore: rows.length > 50 };
   });
 }
@@ -199,9 +212,13 @@ export async function directHistory(userId: string, id: string, before?: number)
 export async function sendDirectMessage(userId: string, id: string, body: string) {
   const result = await db.transaction(async (tx) => {
     const c = await allowedChat(tx, userId, id);
+    const isOwner = c.ownerId === userId;
+    if (!isOwner && c.guestLimit !== null && c.guestStreak >= c.guestLimit) {
+      throw conflict("guest_limit", "Sačekaj odgovor vlasnika prije slanja nove poruke.");
+    }
     const now = new Date();
     const [message] = await tx.insert(s.directMessages).values({ conversationId: id, senderId: userId, body, createdAt: now }).returning();
-    await tx.update(s.directConversations).set({ lastMessageAt: now }).where(eq(s.directConversations.id, id));
+    await tx.update(s.directConversations).set({ lastMessageAt: now, guestStreak: isOwner ? 0 : c.guestStreak + 1 }).where(eq(s.directConversations.id, id));
     const peerId = c.userA === userId ? c.userB : c.userA;
     const [sender] = await tx.select({ displayName: s.users.displayName }).from(s.users).where(eq(s.users.id, userId));
     // No message text in notifications or websocket broadcasts.
@@ -210,6 +227,16 @@ export async function sendDirectMessage(userId: string, id: string, body: string
   });
   emit(result.notes, result.users, id);
   return result.message;
+}
+
+export async function setDirectLimit(userId: string, id: string, limit: number | null) {
+  const c = await db.transaction(async (tx) => {
+    const c = await allowedChat(tx, userId, id);
+    if (c.ownerId !== userId) throw forbidden();
+    await tx.update(s.directConversations).set({ guestLimit: limit }).where(eq(s.directConversations.id, id));
+    return c;
+  });
+  hub.toUsers([c.userA, c.userB], "direct:changed", { conversationId: id });
 }
 
 export async function readDirectChat(userId: string, id: string, messageId: number) {

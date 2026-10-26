@@ -4,12 +4,13 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-route
 import { AuthProvider, useAuth } from "./shell";
 import { Login, Register, Forgot, Reset, Verify } from "./pages/Auth";
 import { Home } from "./pages/Home";
-import { Contacts, ConnectByQr } from "./pages/Contacts";
+import { Contacts } from "./pages/Contacts";
 import { RoomView } from "./pages/Room";
 import { RoomEditor } from "./pages/RoomEditor";
 import { Settings } from "./pages/Settings";
 import { Admin } from "./pages/Admin";
 import { DirectChats, DirectConversation, DirectRequests } from "./pages/DirectChat";
+import { GuestQr, GuestConversation, GuestConversations, OwnerGuestConversation, Scanner } from "./pages/Visitor";
 import "./styles.css";
 
 function Protected({ children }: { children: React.ReactNode }) {
@@ -31,9 +32,13 @@ function App() {
           <Route path="/zaboravljena-lozinka" element={<Forgot />} />
           <Route path="/nova-lozinka" element={<Reset />} />
           <Route path="/potvrda" element={<Verify />} />
+          <Route path="/skeniraj" element={<Scanner />} />
+          <Route path="/gost-razgovori" element={<GuestConversations />} />
+          <Route path="/gost/:id" element={<GuestConversation />} />
+          <Route path="/c/:qrId" element={<GuestQr />} />
           <Route path="/" element={<Protected><Home /></Protected>} />
           <Route path="/kontakti" element={<Protected><Contacts /></Protected>} />
-          <Route path="/c/:qrId" element={<Protected><ConnectByQr /></Protected>} />
+          <Route path="/gost-chat/:id" element={<Protected><OwnerGuestConversation /></Protected>} />
           <Route path="/chat" element={<Protected><DirectChats /></Protected>} />
           <Route path="/chat/zahtjevi" element={<Protected><DirectRequests /></Protected>} />
           <Route path="/chat/:id" element={<Protected><DirectConversation /></Protected>} />

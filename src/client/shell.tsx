@@ -67,8 +67,12 @@ function useDirectUnread() {
       expiredOwner.current = user.id;
     }
     let active = true;
-    const load = () => api.get<{ conversations: { id: string; unreadCount: number }[] }>("/direct/conversations")
-      .then((result) => { if (active) setCount(result.conversations.reduce((total, chat) => total + (expiredIds.current.has(chat.id) ? 0 : chat.unreadCount), 0)); })
+    const load = () => Promise.all([
+      api.get<{ conversations: { id: string; unreadCount: number }[] }>("/direct/conversations"),
+      api.get<{ chats: { unreadCount: number }[] }>("/visitor/owner/conversations"),
+    ]).then(([result, visitors]) => { if (active) setCount(
+      result.conversations.reduce((total, chat) => total + (expiredIds.current.has(chat.id) ? 0 : chat.unreadCount), 0)
+      + visitors.chats.reduce((total, chat) => total + chat.unreadCount, 0)); })
       .catch(() => {});
     const expired = (event: { conversationId: string }) => {
       expiredIds.current.add(event.conversationId);

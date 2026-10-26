@@ -10,6 +10,13 @@ type Conversation = {
   id: string; peer: Peer;
   lastMessage: null | { id: number; body: string; senderId: string; createdAt: string };
   lastMessageAt: string | null; createdAt: string; unreadCount: number;
+  ownerId?: string; guestLimit?: number | null; guestStreak?: number; remaining?: number | null;
+  roomInvite?: { sessionId: string | null; guestUserId: string; isContact: boolean };
+  peerQrId?: string;
+};
+type VisitorChat = {
+  id: string; displayName: string; ownerName: string; status: "pending" | "approved" | "rejected";
+  lastMessageAt: string | null; lastMessage: null | { body: string }; unreadCount: number;
 };
 type Request = {
   id: string; ownerId: string; requesterId: string; peer: Peer;
@@ -29,13 +36,18 @@ function errorText(error: unknown) {
 
 export function DirectChats() {
   const [items, setItems] = useState<Conversation[] | null>(null);
+  const [visitorItems, setVisitorItems] = useState<VisitorChat[]>([]);
   const [error, setError] = useState("");
   const navigate = useNavigate();
   const expiredIds = useRef(new Set<string>());
   const load = useCallback(async () => {
     try {
-      const result = await api.get<{ conversations: Conversation[] }>("/direct/conversations");
+      const [result, visitors] = await Promise.all([
+        api.get<{ conversations: Conversation[] }>("/direct/conversations"),
+        api.get<{ chats: VisitorChat[] }>("/visitor/owner/conversations"),
+      ]);
       setItems(result.conversations.filter((chat) => !expiredIds.current.has(chat.id)));
+      setVisitorItems(visitors.chats);
       setError("");
     } catch (e) { setError(errorText(e)); }
   }, []);
@@ -60,7 +72,7 @@ export function DirectChats() {
       <Link className="btn warm" to="/chat/zahtjevi">Zahtjevi za razgovor</Link>
     </div>
     {error && <div className="notice error" role="alert">{error} <button className="btn small ghost" onClick={load}>Pokušaj ponovo</button></div>}
-    {!items ? <div className="empty" aria-label="Učitavanje razgovora">Učitavanje razgovora…</div> : items.length === 0
+    {!items ? <div className="empty" aria-label="Učitavanje razgovora">Učitavanje razgovora…</div> : items.length === 0 && visitorItems.length === 0
       ? <div className="notice"><strong>Ovdje će biti tvoji razgovori.</strong><p className="meta">Samo osobe kojima odobriš zahtjev mogu ti pisati. Skeniraj QR kod osobe da pošalješ zahtjev.</p><Link to="/kontakti">Otvori kontakte</Link></div>
       : <ul className="list">{items.map((chat) => <li key={chat.id} className="direct-row" onClick={() => navigate(`/chat/${chat.id}`)} role="link" tabIndex={0} onKeyDown={(e) => { if (e.key === "Enter") navigate(`/chat/${chat.id}`); }}>
         <div className="direct-avatar" aria-hidden="true">{chat.peer.displayName.trim().charAt(0).toLocaleUpperCase("bs-BA")}</div>
@@ -69,17 +81,29 @@ export function DirectChats() {
           <div className="meta direct-preview">{chat.lastMessage?.body ?? "Započnite razgovor"}</div>
         </div>
         <div className="direct-trailing"><span className="meta">{formatDate(chat.lastMessageAt)}</span>{chat.unreadCount > 0 && <span className="badge">{chat.unreadCount}</span>}</div>
+      </li>)}
+      {visitorItems.map((chat) => <li key={`visitor-${chat.id}`} className="direct-row" onClick={() => navigate(`/gost-chat/${chat.id}`)} role="link" tabIndex={0} onKeyDown={(e) => { if (e.key === "Enter") navigate(`/gost-chat/${chat.id}`); }}>
+        <div className="direct-avatar visitor-avatar" aria-hidden="true">{chat.displayName.trim().charAt(0).toLocaleUpperCase("bs-BA")}</div>
+        <div className="direct-summary"><div className="direct-name">{chat.displayName}<span className="visitor-tag"> gost</span></div><div className="meta direct-preview">{chat.lastMessage?.body ?? (chat.status === "pending" ? "Čeka se tvoja odluka" : "Gostujući razgovor")}</div></div>
+        <div className="direct-trailing"><span className="meta">{formatDate(chat.lastMessageAt)}</span>{chat.unreadCount > 0 && <span className="badge">{chat.unreadCount}</span>}</div>
       </li>)}</ul>}
   </Shell>;
 }
 
 export function DirectRequests() {
   const [requests, setRequests] = useState<Request[] | null>(null);
+  const [visitorRequests, setVisitorRequests] = useState<VisitorChat[]>([]);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
   const navigate = useNavigate();
   const load = useCallback(async () => {
-    try { setRequests((await api.get<{ requests: Request[] }>("/direct/requests")).requests); setError(""); }
+    try {
+      const [direct, visitors] = await Promise.all([
+        api.get<{ requests: Request[] }>("/direct/requests"),
+        api.get<{ chats: VisitorChat[] }>("/visitor/owner/requests"),
+      ]);
+      setRequests(direct.requests); setVisitorRequests(visitors.chats); setError("");
+    }
     catch (e) { setError(errorText(e)); }
   }, []);
   useEffect(() => {
@@ -99,14 +123,29 @@ export function DirectRequests() {
     } catch (e) { setError(errorText(e)); }
     finally { setBusy(null); }
   };
+  const decideVisitor = async (chat: VisitorChat, action: "approve" | "reject") => {
+    if (busy) return;
+    setBusy(`visitor-${chat.id}`); setError("");
+    try {
+      await api.post(`/visitor/owner/${encodeURIComponent(chat.id)}/${action}`);
+      await load();
+      if (action === "approve") navigate(`/gost-chat/${chat.id}`);
+    } catch (e) { setError(errorText(e)); }
+    finally { setBusy(null); }
+  };
   return <Shell>
     <p><Link to="/chat">← Razgovori</Link></p>
     <h1>Zahtjevi za razgovor</h1>
     <p className="lead">Ti odlučuješ ko može započeti privatni razgovor s tobom.</p>
     {error && <p className="notice error" role="alert">{error}</p>}
-    {!requests ? <p className="empty">Učitavanje zahtjeva…</p> : requests.length === 0
+      {!requests ? <p className="empty">Učitavanje zahtjeva…</p> : requests.length === 0 && visitorRequests.length === 0
       ? <p className="empty">Trenutno nema zahtjeva za razgovor.</p>
-      : <ul className="list">{requests.map((request) => <li key={request.id}>
+      : <ul className="list">{visitorRequests.map((request) => <li key={`visitor-${request.id}`}>
+        <div><div>{request.displayName}</div><div className="meta">Gostujući zahtjev · {formatDate(request.lastMessageAt)}</div><div className="meta">Osoba bez profila; odobrenje otvara samo privatni chat.</div></div>
+        {request.status === "pending" && <div className="row"><button className="btn small" disabled={busy !== null} onClick={() => decideVisitor(request, "approve")}>{busy === `visitor-${request.id}` ? "Obrada…" : "Odobri"}</button><button className="btn small ghost" disabled={busy !== null} onClick={() => decideVisitor(request, "reject")}>Odbij</button></div>}
+        {request.status === "approved" && <Link className="btn small ghost" to={`/gost-chat/${request.id}`}>Otvori chat</Link>}
+        {request.status === "rejected" && <span className="meta">Zahtjev nije odobren.</span>}
+      </li>)}{requests.map((request) => <li key={request.id}>
         <div><div>{request.peer.displayName}</div><div className="meta">{request.direction === "incoming" ? "Dolazni zahtjev" : "Poslan zahtjev"} · {formatDate(request.createdAt)}</div>
           {request.status === "rejected" && request.retryAt && request.direction === "outgoing" && <div className="meta">Novi zahtjev možeš poslati nakon {formatDate(request.retryAt)}.</div>}
           {request.status === "rejected" && <div className="meta">{request.direction === "incoming" ? "Zahtjev nije odobren." : "Zahtjev nije prihvaćen."}</div>}
@@ -126,7 +165,7 @@ export function DirectConversation() {
   const { user } = useAuth();
   const routeIdentity = useRef({ id, version: 0 });
   if (routeIdentity.current.id !== id) routeIdentity.current = { id, version: routeIdentity.current.version + 1 };
-  const [conversation, setConversation] = useState<{ id: string; peer: Peer; createdAt: string; lastMessageAt: string | null } | null>(null);
+  const [conversation, setConversation] = useState<Conversation | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [hasMore, setHasMore] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -142,6 +181,8 @@ export function DirectConversation() {
   const historyCursor = useRef<number | null>(null);
   const readThrough = useRef<number | null>(null);
   const [readCandidate, setReadCandidate] = useState<number | null>(null);
+  const [limitText, setLimitText] = useState("");
+  const limitDraftDirty = useRef(false);
   const bottom = useRef<HTMLDivElement>(null);
   const loadLatest = useCallback(async (scroll = false) => {
     if (expiredId.current === id) return;
@@ -151,6 +192,7 @@ export function DirectConversation() {
       const result = await api.get<{ conversation: NonNullable<typeof conversation>; messages: ChatMessage[]; hasMore: boolean }>(`/direct/conversations/${encodeURIComponent(id)}/messages`);
       if (routeIdentity.current.id !== id || routeIdentity.current.version !== routeVersion || latestSequence.current !== seq) return;
       setConversation(result.conversation);
+      if (!limitDraftDirty.current) setLimitText(result.conversation.guestLimit == null ? "" : String(result.conversation.guestLimit));
       setMessages((current) => {
         const byId = new Map(current.map((message) => [message.id, message]));
         result.messages.forEach((message) => byId.set(message.id, message));
@@ -252,6 +294,23 @@ export function DirectConversation() {
       if (routeIdentity.current.id === id && routeIdentity.current.version === routeVersion) setBusy(false);
     }
   };
+  const isOwner = !!conversation && conversation.ownerId === user?.id;
+  const saveLimit = async (e: FormEvent) => {
+    e.preventDefault();
+    const limit = limitText.trim() === "" ? null : Number(limitText);
+    if (limit !== null && (!Number.isInteger(limit) || limit < 1 || limit > 1000)) { setError("Unesi broj od 1 do 1000 ili ostavi prazno za neograničeno."); return; }
+    try {
+      await api.patch(`/direct/conversations/${encodeURIComponent(id)}/limit`, { limit });
+      limitDraftDirty.current = false; await loadLatest();
+    } catch (e) { setError(errorText(e)); }
+  };
+  const invitePeer = async () => {
+    if (!conversation?.roomInvite?.isContact || !conversation.roomInvite.sessionId) return;
+    try {
+      await api.post(`/sessions/${encodeURIComponent(conversation.roomInvite.sessionId)}/invitations`, { userId: conversation.roomInvite.guestUserId });
+      setError("");
+    } catch (e) { setError(errorText(e)); }
+  };
   useEffect(() => {
     if (!conversation || readCandidate === null || document.visibilityState !== "visible" || readThrough.current === readCandidate || routeIdentity.current.id !== id) return;
     readThrough.current = readCandidate;
@@ -285,6 +344,18 @@ export function DirectConversation() {
     <p><Link to="/chat">← Svi razgovori</Link></p>
     <h1>{conversation?.peer.displayName ?? "Privatni razgovor"}</h1>
     <p className="lead">Poruke su vidljive samo vama dvoma. Razgovor se briše nakon 30 dana bez nove poruke.</p>
+      {conversation && (isOwner ? <section className="visitor-controls">
+        <form className="row" onSubmit={saveLimit}><label className="field visitor-limit"><span>Uzastopne poruke gosta</span><input className="input" type="number" min="1" max="1000" value={limitText} onChange={(e) => { limitDraftDirty.current = true; setLimitText(e.target.value); }} placeholder="Neograničeno" /></label><button className="btn small warm">Sačuvaj</button></form>
+        <p className="meta">Prazno znači neograničeno. Ti uvijek možeš pisati bez ograničenja.</p>
+        {conversation.roomInvite && <>{conversation.roomInvite.isContact && conversation.roomInvite.sessionId
+          ? <button className="btn ghost" onClick={invitePeer}>Pošalji poziv u otvorenu sobu</button>
+          : <p className="meta">{conversation.roomInvite.sessionId ? <>Za poziv prvo odobri kontakt. <Link to={`/c/${conversation.peerQrId ?? ""}`}>QR stranica za kontakt</Link>.</> : "Soba mora biti otvorena prije poziva."}</p>}</>}
+        {!conversation.roomInvite && <p className="meta">Poziv je moguć samo kada je soba otvorena i kontakt odobren. <Link to={`/c/${conversation.peerQrId ?? ""}`}>QR stranica za kontakt</Link>; pristup sobi se zatim posebno odobrava.</p>}
+      </section> : <>
+        {conversation.remaining === 0 && <p className="notice">Dosegao/la si ograničenje od {conversation.guestLimit ?? 2} uzastopne poruke. Sačekaj odgovor vlasnika.</p>}
+        {conversation.remaining != null && conversation.remaining > 0 && <p className="meta">Preostalo poruka prije odgovora vlasnika: {conversation.remaining}</p>}
+        {conversation.roomInvite && <div className="notice visitor-offer"><strong>Poziv u sobu zahtijeva dodatne korake.</strong><p>Potrebno je da budeš kontakt, zatim vlasnik šalje poziv i odobrava ulazak. Chat je nezavisan od sobe.</p><Link className="btn ghost" to="/">Otvori početnu stranicu i pregledaj pozive</Link></div>}
+      </>)}
     {error && <p className="notice error" role="alert">{error} {!unavailable && <button className="btn small ghost" onClick={() => loadLatest()}>Pokušaj ponovo</button>}</p>}
     <section className="direct-thread" aria-label="Poruke">
       {loading ? <div className="empty">Učitavanje razgovora…</div> : <>
@@ -298,10 +369,10 @@ export function DirectConversation() {
     </section>
     <form className="direct-compose" onSubmit={send}>
       <label className="sr-only" htmlFor="direct-message">Poruka</label>
-      <textarea id="direct-message" className="textarea" maxLength={4000} rows={2} value={draft} onChange={(e) => { draftRef.current = e.target.value; setDraft(e.target.value); }} placeholder="Napiši poruku…" disabled={loading || !!error || busy} />
+      <textarea id="direct-message" className="textarea" maxLength={4000} rows={2} value={draft} onChange={(e) => { draftRef.current = e.target.value; setDraft(e.target.value); }} placeholder="Napiši poruku…" disabled={loading || !!error || busy || (!isOwner && conversation?.remaining === 0)} />
       <div className="row" style={{ justifyContent: "space-between" }}>
         <span className="meta">{draft.length}/4000</span>
-        <button className="btn" disabled={loading || !!error || busy || !draft.trim() || draft.trim().length > 4000}>{busy ? "Šaljem…" : "Pošalji"}</button>
+        <button className="btn" disabled={loading || !!error || busy || !draft.trim() || draft.trim().length > 4000 || (!isOwner && conversation?.remaining === 0)}>{busy ? "Šaljem…" : "Pošalji"}</button>
       </div>
     </form>
   </Shell>;

@@ -31,6 +31,11 @@ directChatRouter.get("/conversations/:id/messages", ah(async (req, res) => {
   const before = req.query.before === undefined ? undefined : z.coerce.number().int().positive().max(Number.MAX_SAFE_INTEGER).parse(req.query.before);
   res.json(await direct.directHistory(me(req).id, uuidSchema.parse(req.params.id), before));
 }));
+directChatRouter.patch("/conversations/:id/limit", ah(async (req, res) => {
+  const { limit } = z.object({ limit: z.number().int().min(1).max(1000).nullable() }).parse(req.body);
+  await direct.setDirectLimit(me(req).id, uuidSchema.parse(req.params.id), limit);
+  res.json({ ok: true });
+}));
 directChatRouter.post("/conversations/:id/messages", ah(async (req, res) => {
   const { body } = z.object({ body: z.string().trim().min(1).max(config.maxMessageLength) }).parse(req.body);
   await rateLimit("message", me(req).id);

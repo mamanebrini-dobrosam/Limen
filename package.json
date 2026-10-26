@@ -19,6 +19,7 @@
   "dependencies": {
     "@node-rs/argon2": "^2.2.2",
     "@replit/object-storage": "^1.0.0",
+    "@zxing/browser": "^0.1.5",
     "cookie-parser": "^1.4.7",
     "drizzle-orm": "^0.45.4",
     "express": "^5.3.0",
@@ -37,6 +38,7 @@
     "zod": "^4.6.7"
   },
   "devDependencies": {
+    "playwright-core": "^1.64.1",
     "@types/cookie-parser": "^1.4.10",
     "@types/express": "^5.0.6",
     "@types/multer": "^2.3.0",

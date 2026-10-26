@@ -12,6 +12,7 @@ import { closeSession, endSeat } from "../services/sessions.js";
 import * as rules from "../services/rules.js";
 import { deleteAssetFile } from "../lib/media.js";
 import { exportDirectData } from "../services/direct-chat.js";
+import { exportVisitorData } from "../services/visitor-chat.js";
 
 const s = schema;
 export const authRouter = Router();
@@ -188,6 +189,7 @@ meRouter.get("/export", ah(async (req, res) => {
     exportedAt: new Date().toISOString(),
     account: { email: u.email, displayName: u.displayName, birthDate: u.birthDate, createdAt: u.createdAt, qrId: u.qrId },
     directChat: await exportDirectData(u.id),
+    visitorChat: await exportVisitorData(u.id),
     contacts: [...contactsA, ...contactsB], messagesWritten: myMessages, roomItems: items, blocks: blocksMade, reports: reportsMade,
   });
 }));
@@ -211,6 +213,10 @@ meRouter.delete("/", ah(async (req, res) => {
       .where(or(eq(s.directConversations.userA, u.id), eq(s.directConversations.userB, u.id)));
     const requests = await tx.select({ id: s.directRequests.id }).from(s.directRequests)
       .where(or(eq(s.directRequests.ownerId, u.id), eq(s.directRequests.requesterId, u.id)));
+    const visitorChats = await tx.select({ id: s.visitorChats.id }).from(s.visitorChats)
+      .where(or(eq(s.visitorChats.ownerId, u.id), eq(s.visitorChats.linkedUserId, u.id)));
+    if (visitorChats.length) await tx.delete(s.notifications).where(
+      inArray(sql<string>`${s.notifications.payload}->>'visitorChatId'`, visitorChats.map((c) => c.id)));
     if (chats.length || requests.length) await tx.delete(s.notifications).where(and(
       sql`${s.notifications.type} like 'direct\\_%' escape '\\'`,
       or(
