@@ -1,0 +1,13 @@
+import { config } from "./config.js";
+import { createServer } from "./app.js";
+import { runMigrations } from "./db/migrate.js";
+import { startSweeper } from "./services/sessions.js";
+import { cleanupRateLimits } from "./lib/infra.js";
+
+await runMigrations();
+const { server } = createServer();
+startSweeper();
+setInterval(() => { cleanupRateLimits().catch(() => {}); }, 3600_000);
+server.listen(config.port, "0.0.0.0", () => {
+  console.log(`LIMEN server radi na portu ${config.port} (${config.env})`);
+});

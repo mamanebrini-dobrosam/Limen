@@ -1,0 +1,47 @@
+import React from "react";
+import { createRoot } from "react-dom/client";
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
+import { AuthProvider, useAuth } from "./shell";
+import { Login, Register, Forgot, Reset, Verify } from "./pages/Auth";
+import { Home } from "./pages/Home";
+import { Contacts, ConnectByQr } from "./pages/Contacts";
+import { RoomView } from "./pages/Room";
+import { RoomEditor } from "./pages/RoomEditor";
+import { Settings } from "./pages/Settings";
+import { Admin } from "./pages/Admin";
+import "./styles.css";
+
+function Protected({ children }: { children: React.ReactNode }) {
+  const { user, loading } = useAuth();
+  const loc = useLocation();
+  if (loading) return null;
+  if (!user) return <Navigate to={`/prijava?dalje=${encodeURIComponent(loc.pathname)}`} replace />;
+  if (!user.emailVerified) return <Navigate to="/potvrda" replace />;
+  return <>{children}</>;
+}
+
+function App() {
+  return (
+    <AuthProvider>
+      <BrowserRouter>
+        <Routes>
+          <Route path="/prijava" element={<Login />} />
+          <Route path="/registracija" element={<Register />} />
+          <Route path="/zaboravljena-lozinka" element={<Forgot />} />
+          <Route path="/nova-lozinka" element={<Reset />} />
+          <Route path="/potvrda" element={<Verify />} />
+          <Route path="/" element={<Protected><Home /></Protected>} />
+          <Route path="/kontakti" element={<Protected><Contacts /></Protected>} />
+          <Route path="/c/:qrId" element={<Protected><ConnectByQr /></Protected>} />
+          <Route path="/moja-soba" element={<Protected><RoomEditor /></Protected>} />
+          <Route path="/sto/:sessionId" element={<Protected><RoomView /></Protected>} />
+          <Route path="/postavke" element={<Protected><Settings /></Protected>} />
+          <Route path="/admin" element={<Protected><Admin /></Protected>} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </BrowserRouter>
+    </AuthProvider>
+  );
+}
+
+createRoot(document.getElementById("root")!).render(<React.StrictMode><App /></React.StrictMode>);
