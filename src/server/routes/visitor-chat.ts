@@ -17,6 +17,12 @@ visitorChatRouter.get("/qr/:qr", ah(async (req, res) => {
   res.json(await visitor.visitorQr(req, res, qr.parse(req.params.qr)));
 }));
 visitorChatRouter.get("/mine", ah(async (req, res) => { res.json({ chats: await visitor.visitorMine(req) }); }));
+visitorChatRouter.post("/recover", ah(async (req, res) => {
+  res.setHeader("Cache-Control", "no-store");
+  await rateLimit("visitorRecovery", `ip:${req.ip}`);
+  const { recoveryCode } = z.object({ recoveryCode: z.string().trim().min(1).max(200) }).parse(req.body);
+  res.json(await visitor.recoverVisitor(req, res, recoveryCode));
+}));
 visitorChatRouter.post("/requests", ah(async (req, res) => {
   const data = z.object({ qrId: qr, displayName: z.string().trim().min(2).max(40) }).parse(req.body);
   await rateLimit("visitorRequest", `ip:${req.ip}`);
@@ -42,6 +48,11 @@ visitorChatRouter.post("/conversations/:id/claim", requireVerified, ah(async (re
   if (!(await verify(req.user!.passwordHash, password))) throw unauthorized();
   await visitor.claimVisitor(req, uuidSchema.parse(req.params.id));
   res.json({ ok: true });
+}));
+visitorChatRouter.post("/conversations/:id/recovery", ah(async (req, res) => {
+  res.setHeader("Cache-Control", "no-store");
+  await rateLimit("visitorRecoveryIssue", `ip:${req.ip}`);
+  res.json(await visitor.issueVisitorRecovery(req, uuidSchema.parse(req.params.id)));
 }));
 
 visitorChatRouter.use("/owner", requireVerified);

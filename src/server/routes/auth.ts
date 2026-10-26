@@ -6,7 +6,7 @@ import crypto from "node:crypto";
 import { config } from "../config.js";
 import { db, schema } from "../db/client.js";
 import { HttpError, ah, ageOn, bad, randomToken, sha256, unauthorized, conflict, notFound } from "../lib/core.js";
-import { rateLimit, sendMail, hub } from "../lib/infra.js";
+import { rateLimit, sendMail, hub, ensureMailAvailable } from "../lib/infra.js";
 import { createSession, setSessionCookie, requireUser, me, SESSION_COOKIE } from "../lib/auth.js";
 import { closeSession, endSeat } from "../services/sessions.js";
 import * as rules from "../services/rules.js";
@@ -44,6 +44,7 @@ export function publicUser(u: typeof s.users.$inferSelect) {
 
 authRouter.post("/register", ah(async (req, res) => {
   await rateLimit("register", req.ip ?? "?");
+  ensureMailAvailable();
   const body = z.object({
     email, password,
     displayName: z.string().trim().min(2).max(40),
@@ -93,6 +94,7 @@ authRouter.post("/verify-email", ah(async (req, res) => {
 authRouter.post("/resend-verification", requireUser, ah(async (req, res) => {
   const u = me(req);
   if (u.emailVerifiedAt) return res.json({ ok: true });
+  ensureMailAvailable();
   await rateLimit("passwordReset", `verify:${u.id}`);
   const token = await issueEmailToken(u.id, "verify");
   await sendMail(u.email, "Potvrdi svoju email adresu – LIMEN", `Potvrdi adresu:\n${config.appUrl}/potvrda?token=${token}`);
@@ -128,6 +130,8 @@ authRouter.post("/forgot-password", ah(async (req, res) => {
   const body = z.object({ email }).parse(req.body);
   await rateLimit("passwordReset", `ip:${req.ip}`);
   await rateLimit("passwordReset", `email:${body.email}`);
+  // A missing mail service must not distinguish existing/nonexistent accounts.
+  ensureMailAvailable();
   const [u] = await db.select().from(s.users).where(eq(s.users.email, body.email)).limit(1);
   if (u) {
     const token = await issueEmailToken(u.id, "reset");

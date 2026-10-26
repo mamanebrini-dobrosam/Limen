@@ -73,8 +73,8 @@ The hook is non-interactive and refuses to run with `NODE_ENV=production`.
 - Guest identities are separate from registered users. Each owner/chat identity
   is authenticated by a random HttpOnly, SameSite cookie scoped to `/api/visitor`;
   only its SHA-256 hash is stored in the database. Neither a public QR nor a
-  conversation ID is an access credential. The same browser/cookies are needed
-  to resume at `/gost-razgovori`; deleting cookies loses guest access.
+  conversation ID is an access credential. Resume at `/gost-razgovori` with the
+  same browser/cookies, or use a previously saved recovery key.
 - Owners manually approve/reject visitor requests through Chat requests.
   Guests poll for decisions and replies, only while the page is visible.
   Pending/rejected requests cannot send messages.
@@ -99,6 +99,44 @@ The hook is non-interactive and refuses to run with `NODE_ENV=production`.
   It checks QR-image decoding, anonymous approval, limits, profile creation,
   identity confirmation, separate room admission and revocation. Real-device
   camera hardware is not covered by this automated test.
+
+## Guest recovery and final verification
+
+- Approved guests can create/download a secret 256-bit recovery key in their
+  chat. It is shown once, never placed in a URL, logged or returned in ordinary
+  chat data/exports. Only its SHA-256 hash is stored. Creating another key
+  invalidates the previous recovery key, not the current guest cookie.
+- `/gost-oporavak` accepts the saved key, not a QR, nickname or chat ID.
+  Recovery atomically rotates the guest cookie and recovery key; the old
+  cookie and old recovery key immediately stop authorizing API access.
+  Recovery is rate-limited and still enforces approval, blocking, expiry and
+  the existing guest-message counter. It never grants registered-user or room
+  access or extends retention.
+- Losing both the cookie and saved key is intentionally not recoverable.
+  This also applies to conversations lost before a key was created. A fresh
+  QR request must receive fresh manual approval; do not introduce nickname-
+  or QR-only recovery as a convenience workaround.
+- Camera access requires HTTPS and a user action. Rear-camera preference,
+  muted inline video, permission/missing/busy-camera messages, stream cleanup
+  and QR-image fallback are implemented without changing access permissions.
+  An independent decoder is available for image and camera frames.
+- `node tests/browser-scanner.mjs` simulates Android/iPhone viewport and user
+  agents in Chromium, including real synthetic MediaStreams and QR frames.
+  It does not certify Safari/WebKit or physical mobile camera hardware.
+- Email verification rejects invalid, expired, wrong-purpose and used links.
+  Resending a link does not count as confirming email. Repeated React effects
+  reuse the same in-flight verification request.
+- Production requires valid `SMTP_URL`, `MAIL_FROM` and a public HTTPS `APP_URL`.
+  Without them, mail-dependent operations fail explicitly with HTTP 503;
+  registration does not create an unusable account. Production has no dev
+  outbox fallback or token-bearing mail logs. The development outbox route
+  returns 404 in production.
+- On 2026-10-26, all 74 automated tests, TypeScript/build checks, the complete
+  two-context visitor/room browser journey and mobile Chromium simulations
+  passed. Browser-test accounts and temporary recovery downloads were removed.
+  No public release was performed. Actual SMTP delivery and physical mobile
+  camera operation remain unverified; configure mail and test real devices
+  before requesting owner approval for any public release.
 
 ## Before publishing
 

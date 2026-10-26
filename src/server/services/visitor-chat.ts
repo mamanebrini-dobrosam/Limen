@@ -210,6 +210,38 @@ export async function claimVisitor(req: Request, id: string) {
   changed(c);
 }
 
+/** Only a currently authenticated guest can mint a recovery credential. */
+export async function issueVisitorRecovery(req: Request, id: string) {
+  const recoveryCode = randomToken(32);
+  await db.transaction(async (tx) => {
+    const c = await requireChat(tx, req, id, false, true);
+    if (c.status !== "approved") throw forbidden("Oporavak je dostupan tek nakon odobrenja razgovora.");
+    await tx.update(s.visitorChats).set({ recoveryHash: sha256(recoveryCode) }).where(eq(s.visitorChats.id, id));
+  });
+  return { recoveryCode };
+}
+
+/** A QR, nickname, account id or chat id alone never authorizes recovery. */
+export async function recoverVisitor(req: Request, res: Response, recoveryCode: string) {
+  const newToken = randomToken(32);
+  const nextCode = randomToken(32);
+  const c = await db.transaction(async (tx) => {
+    const [c] = await tx.select().from(s.visitorChats).where(and(
+      eq(s.visitorChats.recoveryHash, sha256(recoveryCode)), eq(s.visitorChats.status, "approved"), live,
+    )).for("update");
+    const invalid = () => bad("invalid_recovery", "Ključ za oporavak nije važeći ili je razgovor istekao.");
+    if (!c) throw invalid();
+    if (c.linkedUserId && await isBlockedEither(c.ownerId, c.linkedUserId, tx)) throw invalid();
+    // Rotating both credentials revokes old browser sessions and prevents replay.
+    const [updated] = await tx.update(s.visitorChats).set({
+      tokenHash: sha256(newToken), recoveryHash: sha256(nextCode),
+    }).where(eq(s.visitorChats.id, c.id)).returning();
+    return updated;
+  });
+  setGuestCookie(res, c.ownerId, newToken);
+  return { chat: await present(c, false), recoveryCode: nextCode };
+}
+
 export async function cleanupVisitorChats() {
   const expired = await db.transaction(async (tx) => {
     const rows = await tx.delete(s.visitorChats).where(sql`coalesce(${s.visitorChats.lastMessageAt}, ${s.visitorChats.approvedAt}, ${s.visitorChats.createdAt}) <= now() - interval '30 days'`).returning();

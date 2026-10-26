@@ -2,6 +2,8 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { eq, sql } from "drizzle-orm";
 import { db, schema as s } from "../src/server/db/client.js";
 import { cleanupVisitorChats } from "../src/server/services/visitor-chat.js";
+import { config } from "../src/server/config.js";
+import { sha256 } from "../src/server/lib/core.js";
 import { Client, connect, latestToken, newUser, openRoom, seat, startTestServer, type Ctx } from "./helpers.js";
 
 let ctx: Ctx;
@@ -25,6 +27,110 @@ async function approved() {
 }
 const guestPath = (id: string) => `/api/visitor/conversations/${id}`;
 const ownerPath = (id: string) => `/api/visitor/owner/${id}`;
+
+describe("Tajni ključ za oporavak gostujućeg razgovora", () => {
+  it("samo odobren gost s kolačićem može izdati ključ; podaci ne otkrivaju hash ni ključ", async () => {
+    const { owner, guest, id } = await pending();
+    expect((await guest.post(`${guestPath(id)}/recovery`)).status).toBe(403);
+    expect((await owner.post(`${guestPath(id)}/recovery`)).status).toBe(404);
+    expect((await new Client(ctx).post(`${guestPath(id)}/recovery`)).status).toBe(404);
+    await owner.post(`${ownerPath(id)}/approve`);
+    const issued = await guest.post(`${guestPath(id)}/recovery`);
+    expect(issued.status).toBe(200);
+    expect(issued.headers["cache-control"]).toBe("no-store");
+    expect(issued.body.recoveryCode).toMatch(/^[A-Za-z0-9_-]{43}$/);
+    const [row] = await db.select().from(s.visitorChats).where(eq(s.visitorChats.id, id));
+    expect(row.recoveryHash).toBe(sha256(issued.body.recoveryCode));
+    for (const response of [await guest.get(guestPath(id)), await guest.get("/api/visitor/mine"), await owner.get("/api/me/export")]) {
+      const data = JSON.stringify(response.body);
+      expect(data).not.toContain(issued.body.recoveryCode);
+      expect(data).not.toContain(row.recoveryHash);
+    }
+  });
+
+  it("oporavlja izgubljeni kolačić, rotira oba ključa i čuva odobrenje, limit i rok", async () => {
+    const { guest, id, owner } = await approved();
+    await guestSend(guest, id); await guestSend(guest, id);
+    const before = (await guest.get(guestPath(id))).body.chat;
+    const { recoveryCode } = (await guest.post(`${guestPath(id)}/recovery`)).body;
+    const fresh = new Client(ctx);
+    expect((await fresh.get(guestPath(id))).status).toBe(404);
+    for (const code of [owner.qrId, owner.id, id, "Gost bez profila"]) {
+      expect((await fresh.post("/api/visitor/recover", { recoveryCode: code })).status).toBe(400);
+    }
+    const result = await fresh.post("/api/visitor/recover", { recoveryCode });
+    expect(result.status).toBe(200);
+    expect(result.headers["cache-control"]).toBe("no-store");
+    expect(result.headers["set-cookie"][0]).toContain("HttpOnly");
+    expect(result.body.chat).toMatchObject({ id, status: "approved", guestLimit: 2, guestStreak: 2, lastMessageAt: before.lastMessageAt });
+    expect(result.body.recoveryCode).not.toBe(recoveryCode);
+    expect((await fresh.get(guestPath(id))).body.messages).toHaveLength(2);
+    expect((await guest.get(guestPath(id))).status).toBe(404);
+    expect((await fresh.get("/api/me")).status).toBe(401);
+    expect((await guestSend(fresh, id)).status).toBe(409);
+    expect((await new Client(ctx).post("/api/visitor/recover", { recoveryCode })).status).toBe(400);
+    const second = new Client(ctx);
+    expect((await second.post("/api/visitor/recover", { recoveryCode: result.body.recoveryCode })).status).toBe(200);
+    expect((await fresh.get(guestPath(id))).status).toBe(404);
+  });
+
+  it("isti ključ ne može se istovremeno iskoristiti dvaput", async () => {
+    const { guest, id } = await approved();
+    const { recoveryCode } = (await guest.post(`${guestPath(id)}/recovery`)).body;
+    const results = await Promise.all([new Client(ctx), new Client(ctx)].map((c) => c.post("/api/visitor/recover", { recoveryCode })));
+    expect(results.map((r) => r.status).sort()).toEqual([200, 400]);
+  });
+
+  it("zamjena ključa poništava prethodni bez odjave aktivnog gosta", async () => {
+    const { guest, id } = await approved();
+    const first = (await guest.post(`${guestPath(id)}/recovery`)).body.recoveryCode;
+    const second = (await guest.post(`${guestPath(id)}/recovery`)).body.recoveryCode;
+    const fresh = new Client(ctx);
+    expect((await fresh.post("/api/visitor/recover", { recoveryCode: first })).status).toBe(400);
+    expect((await guest.get(guestPath(id))).status).toBe(200);
+    expect((await fresh.post("/api/visitor/recover", { recoveryCode: second })).status).toBe(200);
+  });
+
+  it("istek i brisanje nakon 30 dana onemogućavaju oporavak; izdavanje ne produžava rok", async () => {
+    const { guest, id } = await approved();
+    await guestSend(guest, id);
+    await db.update(s.visitorChats).set({ lastMessageAt: sql`now() - interval '29 days'` }).where(eq(s.visitorChats.id, id));
+    const before = (await guest.get(guestPath(id))).body.chat.lastMessageAt;
+    const { recoveryCode } = (await guest.post(`${guestPath(id)}/recovery`)).body;
+    const recovered = new Client(ctx);
+    expect((await recovered.post("/api/visitor/recover", { recoveryCode })).body.chat.lastMessageAt).toBe(before);
+    const { recoveryCode: nextCode } = (await recovered.post(`${guestPath(id)}/recovery`)).body;
+    await db.update(s.visitorChats).set({ lastMessageAt: sql`now() - interval '30 days'` }).where(eq(s.visitorChats.id, id));
+    expect((await new Client(ctx).post("/api/visitor/recover", { recoveryCode: nextCode })).status).toBe(400);
+    await cleanupVisitorChats();
+    expect((await db.select().from(s.visitorChats).where(eq(s.visitorChats.id, id)))).toHaveLength(0);
+    expect((await new Client(ctx).post("/api/visitor/recover", { recoveryCode: nextCode })).status).toBe(400);
+  });
+
+  it("blokiranje povezanog korisnika važi i za oporavak", async () => {
+    const { guest, owner, id } = await approved();
+    const account = await newUser(ctx);
+    await db.update(s.visitorChats).set({ linkedUserId: account.id }).where(eq(s.visitorChats.id, id));
+    const { recoveryCode } = (await guest.post(`${guestPath(id)}/recovery`)).body;
+    await owner.post("/api/blocks", { userId: account.id });
+    expect((await guest.post(`${guestPath(id)}/recovery`)).status).toBe(404);
+    expect((await new Client(ctx).post("/api/visitor/recover", { recoveryCode })).status).toBe(400);
+  });
+
+  it("zadržava CSRF zaštitu i ograničava pokušaje oporavka", async () => {
+    const { guest, id } = await approved();
+    expect((await guest.agent.post(`${guestPath(id)}/recovery`).send({})).status).toBe(403);
+    expect((await guest.agent.post("/api/visitor/recover").send({ recoveryCode: "invalid" })).status).toBe(403);
+    const old = config.rateLimitsEnabled; const limit = config.limits.visitorRecovery;
+    try {
+      config.rateLimitsEnabled = true; config.limits.visitorRecovery = [2, 900];
+      const fresh = new Client(ctx);
+      expect((await fresh.post("/api/visitor/recover", { recoveryCode: "invalid-1" })).status).toBe(400);
+      expect((await fresh.post("/api/visitor/recover", { recoveryCode: "invalid-2" })).status).toBe(400);
+      expect((await fresh.post("/api/visitor/recover", { recoveryCode: "invalid-3" })).status).toBe(429);
+    } finally { config.rateLimitsEnabled = old; config.limits.visitorRecovery = limit; }
+  });
+});
 const guestSend = (guest: Client, id: string, body = "Gost piše") => guest.post(`${guestPath(id)}/messages`, { body });
 const ownerSend = (owner: Client, id: string, body = "Vlasnik odgovara") => owner.post(`${ownerPath(id)}/messages`, { body });
 

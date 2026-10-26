@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { api, ApiError, type User } from "../api";
 import { useAuth } from "../shell";
@@ -98,18 +98,30 @@ export function Verify() {
   const [params] = useSearchParams();
   const token = params.get("token");
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [confirmed, setConfirmed] = useState(false);
+  const verification = useRef<{ token: string; promise: Promise<unknown> } | null>(null);
   useEffect(() => {
     if (!token) return;
-    api.post("/auth/verify-email", { token })
-      .then(async () => { setMsg({ ok: true, text: "Email je potvrđen." }); await refresh(); })
-      .catch((e) => setMsg({ ok: false, text: e.message }));
+    let active = true;
+    setMsg(null); setConfirmed(false);
+    // Repeated effects must not consume a single-use token twice.
+    if (verification.current?.token !== token) verification.current = { token, promise: api.post("/auth/verify-email", { token }) };
+    verification.current.promise
+      .then(async () => {
+        if (!active) return;
+        setMsg({ ok: true, text: "Email je potvrđen." }); setConfirmed(true); await refresh();
+      }).catch((e) => { if (active) setMsg({ ok: false, text: e.message }); });
+    return () => { active = false; };
   }, [token, refresh]);
-  if (user?.emailVerified && !token) { nav(safeReturn(sessionStorage.getItem("limen:return"))); return null; }
+  useEffect(() => {
+    if (user?.emailVerified && !token) nav(safeReturn(sessionStorage.getItem("limen:return")), { replace: true });
+  }, [user?.emailVerified, token, nav]);
+  if (user?.emailVerified && !token) return null;
   return (
     <AuthFrame title="Potvrdi email" lead={user ? `Poslali smo link na ${user.email}. Otvori ga da potvrdiš adresu.` : undefined}>
       {msg && <p className={`notice ${msg.ok ? "ok" : "error"}`}>{msg.text}</p>}
-      {msg?.ok && <Link className="btn block" to={safeReturn(sessionStorage.getItem("limen:return"))} onClick={() => sessionStorage.removeItem("limen:return")}>Nastavi</Link>}
-      {user && !user.emailVerified && !msg?.ok && (
+      {confirmed && <Link className="btn block" to={safeReturn(sessionStorage.getItem("limen:return"))} onClick={() => sessionStorage.removeItem("limen:return")}>Nastavi</Link>}
+      {user && !user.emailVerified && !confirmed && (
         <div className="stack">
           <button className="btn ghost block" onClick={() => api.post("/auth/resend-verification").then(() => setMsg({ ok: true, text: "Novi link je poslan." })).catch((e) => setMsg({ ok: false, text: e.message }))}>Pošalji link ponovo</button>
           <button className="btn ghost block" onClick={() => refresh()}>Već sam potvrdio/la</button>

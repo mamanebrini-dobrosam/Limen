@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 import sharp from "sharp";
 import { sql } from "drizzle-orm";
 import { db } from "../src/server/db/client.js";
@@ -544,12 +544,14 @@ describe("Rate limiting", () => {
     const sessionId = await openRoom(host);
     await seat(host, sessionId, g);
     config.rateLimitsEnabled = true;
+    // Keep all attempts in one fixed rate-limit window, even at a minute boundary.
+    const clock = vi.spyOn(Date, "now").mockReturnValue(Date.now());
     try {
       const results = [];
       for (let i = 0; i < 32; i++) results.push(await say(g, sessionId, `poruka ${i}`));
       const limited = results.filter((r) => r.status === 429);
       expect(limited.length).toBe(2);
       expect(Number(limited[0].headers["retry-after"])).toBeGreaterThan(0);
-    } finally { config.rateLimitsEnabled = false; }
+    } finally { config.rateLimitsEnabled = false; clock.mockRestore(); }
   });
 });

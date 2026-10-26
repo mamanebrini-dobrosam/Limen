@@ -10,7 +10,9 @@ import { RoomEditor } from "./pages/RoomEditor";
 import { Settings } from "./pages/Settings";
 import { Admin } from "./pages/Admin";
 import { DirectChats, DirectConversation, DirectRequests } from "./pages/DirectChat";
-import { GuestQr, GuestConversation, GuestConversations, OwnerGuestConversation, Scanner } from "./pages/Visitor";
+import { GuestQr, GuestConversation, GuestConversations, OwnerGuestConversation } from "./pages/Visitor";
+import { Scanner } from "./pages/Scanner";
+import { RecoverGuest } from "./pages/GuestRecovery";
 import "./styles.css";
 
 function Protected({ children }: { children: React.ReactNode }) {
@@ -34,6 +36,7 @@ function App() {
           <Route path="/potvrda" element={<Verify />} />
           <Route path="/skeniraj" element={<Scanner />} />
           <Route path="/gost-razgovori" element={<GuestConversations />} />
+          <Route path="/gost-oporavak" element={<RecoverGuest />} />
           <Route path="/gost/:id" element={<GuestConversation />} />
           <Route path="/c/:qrId" element={<GuestQr />} />
           <Route path="/" element={<Protected><Home /></Protected>} />

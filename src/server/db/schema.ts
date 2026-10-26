@@ -247,6 +247,7 @@ export const visitorChats = pgTable("visitor_chats", {
   id: id(),
   ownerId: uuid("owner_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   tokenHash: text("token_hash").notNull().unique(),
+  recoveryHash: text("recovery_hash").unique(),
   displayName: text("display_name").notNull(),
   status: text("status", { enum: ["pending", "approved", "rejected"] }).notNull().default("pending"),
   linkedUserId: uuid("linked_user_id").references(() => users.id, { onDelete: "cascade" }),

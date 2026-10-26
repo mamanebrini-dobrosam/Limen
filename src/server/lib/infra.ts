@@ -4,6 +4,7 @@ import type { Server } from "socket.io";
 import { config } from "../config.js";
 import { db, schema } from "../db/client.js";
 import { HttpError } from "./core.js";
+import { productionMailErrors } from "./mail-settings.js";
 
 // ---------- Rate limiting (fiksni prozor, atomski brojač u PostgreSQL-u) ----------
 export async function rateLimit(bucket: keyof typeof config.limits | string, subject: string) {
@@ -32,19 +33,31 @@ export async function cleanupRateLimits() {
 // ---------- Email ----------
 const transport = config.smtpUrl ? nodemailer.createTransport(config.smtpUrl) : null;
 
+export function ensureMailAvailable() {
+  if (productionMailErrors(config).length) {
+    throw new HttpError(503, "email_unavailable", "Slanje emaila trenutno nije dostupno. Pokušaj kasnije.");
+  }
+}
+
 export async function sendMail(to: string, subject: string, body: string) {
+  ensureMailAvailable();
   if (transport) {
-    await transport.sendMail({ from: config.mailFrom, to, subject, text: body });
+    try { await transport.sendMail({ from: config.mailFrom, to, subject, text: body }); }
+    catch {
+      // Never log credentials, recipient data or verification/reset links on failure.
+      console.error("Email delivery failed.");
+      throw new HttpError(503, "email_unavailable", "Email nije poslan. Pokušaj kasnije.");
+    }
     return;
   }
-  // Bez SMTP-a (razvoj): email se ispisuje u konzolu i sprema u dev_outbox.
+  // Development-only outbox. Do not print token-bearing mail into server logs.
   if (!config.isProd) {
     await db.insert(schema.devOutbox).values({ to, subject, body });
-    if (!config.isTest) console.log(`\n[DEV EMAIL] Za: ${to}\nNaslov: ${subject}\n${body}\n`);
+    if (!config.isTest) console.log("[DEV EMAIL] Poruka je sačuvana u razvojnom sandučiću.");
     return;
   }
-  // Produkcija bez SMTP-a (npr. prvi test na Replitu): email se ispisuje u log servera.
-  console.warn(`[EMAIL – SMTP_URL nije postavljen] Za: ${to} | ${subject}\n${body}`);
+  // Production must never fall back to development outbox or token-bearing logs.
+  throw new HttpError(503, "email_unavailable", "Slanje emaila trenutno nije dostupno.");
 }
 
 // ---------- Realtime hub ----------

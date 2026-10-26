@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
-import { BrowserMultiFormatReader, type IScannerControls } from "@zxing/browser";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { api, ApiError } from "../api";
 import { Shell, useAuth } from "../shell";
 import { ConnectByQr } from "./Contacts";
+import { RecoveryTools } from "./GuestRecovery";
 
 type GuestMessage = { id: number; chatId: string; sender: "owner" | "guest"; body: string; createdAt: string };
 type GuestChat = {
@@ -17,80 +17,6 @@ type ConversationResult = { chat: GuestChat; messages: GuestMessage[]; hasMore: 
 
 const friendlyError = (e: unknown) => e instanceof Error ? e.message : "Nešto nije u redu. Pokušaj ponovo.";
 const when = (value: string) => new Date(value).toLocaleString("bs-BA", { dateStyle: "medium", timeStyle: "short" });
-function codeFrom(value: string): string | null {
-  const raw = value.trim();
-  if (!raw) return null;
-  let path = raw;
-  try {
-    const u = new URL(raw, window.location.origin);
-    if (u.origin !== window.location.origin) return null;
-    path = u.pathname;
-  } catch { return null; }
-  const match = path.match(/^\/c\/([A-Za-z0-9_-]{3,128})\/?$/);
-  return match?.[1] ?? (/^[A-Za-z0-9_-]{3,128}$/.test(raw) ? raw : null);
-}
-
-export function Scanner() {
-  const navigate = useNavigate();
-  const video = useRef<HTMLVideoElement>(null);
-  const controls = useRef<IScannerControls | null>(null);
-  const reader = useRef(new BrowserMultiFormatReader());
-  const [running, setRunning] = useState(false);
-  const [error, setError] = useState("");
-  const [fallback, setFallback] = useState("");
-  const stop = useCallback(() => {
-    controls.current?.stop(); controls.current = null;
-    const stream = video.current?.srcObject as MediaStream | null;
-    stream?.getTracks().forEach((track) => track.stop());
-    if (video.current) video.current.srcObject = null;
-    setRunning(false);
-  }, []);
-  const openCode = (value: string) => {
-    const code = codeFrom(value);
-    if (!code) { setError("Unesi ispravan LIMEN QR link ili kod."); return; }
-    stop(); navigate(`/c/${encodeURIComponent(code)}`);
-  };
-  const start = async () => {
-    setError("");
-    try {
-      setRunning(true);
-      controls.current = await reader.current.decodeFromVideoDevice(undefined, video.current!, (result) => {
-        if (result) openCode(result.getText());
-      });
-    } catch (e) { setRunning(false); setError("Kamera nije dostupna. Dozvoli pristup kameri ili unesi kod ručno."); }
-  };
-  const upload = async (file?: File) => {
-    if (!file) return;
-    setError("");
-    try {
-      const url = URL.createObjectURL(file);
-      try {
-        const image = new Image(); image.src = url;
-        await new Promise<void>((resolve, reject) => { image.onload = () => resolve(); image.onerror = () => reject(new Error("Slika se ne može otvoriti.")); });
-        const result = await reader.current.decodeFromImageElement(image);
-        openCode(result.getText());
-      } finally { URL.revokeObjectURL(url); }
-    } catch { setError("Na slici nismo pronašli važeći LIMEN QR kod."); }
-  };
-  useEffect(() => () => { controls.current?.stop(); const s = video.current?.srcObject as MediaStream | null; s?.getTracks().forEach((t) => t.stop()); }, []);
-  return <div className="shell"><header className="topbar"><Link to="/" className="wordmark">LIMEN<small>mjesto gdje priče žive</small></Link><Link to="/prijava">Prijava</Link></header>
-    <main className="page"><p className="visitor-kicker">ULAZ BEZ PROFILA</p><h1>Skeniraj LIMEN QR kod</h1>
-      <p className="lead">Skeniranje samo otvara zahtjev. Vlasnik odlučuje ko može započeti razgovor.</p>
-      <section className="scanner-frame"><video ref={video} muted playsInline aria-label="Prikaz kamere za skeniranje" />{!running && <div className="scanner-placeholder">Kamera će se pokrenuti tek kada je uključiš.</div>}</section>
-      <div className="stack"><button className="btn block" onClick={running ? stop : start}>{running ? "Zaustavi kameru" : "Uključi kameru"}</button>
-        <label className="btn ghost block scanner-upload">Odaberi sliku QR koda<input type="file" accept="image/*" onChange={(e) => upload(e.target.files?.[0])} /></label>
-      </div>
-      <form className="visitor-fallback" onSubmit={(e) => { e.preventDefault(); openCode(fallback); }}>
-        <label className="field"><span>Zalijepi link ili upiši kod</span><input className="input" value={fallback} onChange={(e) => setFallback(e.target.value)} placeholder="limen.ba/c/…" /></label>
-        <button className="btn warm block">Nastavi</button>
-      </form>
-      {error && <p className="notice error" role="alert">{error}</p>}
-      <p className="meta visitor-links"><Link to="/gost-razgovori">Nastavi gostujući razgovor</Link><span>·</span><Link to="/prijava">Prijava / registracija</Link></p>
-      <p className="notice">Isti preglednik je potreban za nastavak. Brisanjem kolačića gubiš pristup gostujućem razgovoru.</p>
-    </main>
-  </div>;
-}
-
 export function GuestQr() {
   const { qrId = "" } = useParams();
   const { user } = useAuth();
@@ -147,7 +73,8 @@ export function GuestConversations() {
     return () => { window.clearInterval(timer); document.removeEventListener("visibilitychange", refresh); };
   }, [load]);
   return <div className="shell"><header className="topbar"><Link to="/" className="wordmark">LIMEN<small>mjesto gdje priče žive</small></Link><Link to="/prijava">Prijava</Link></header>
-    <main className="page"><p className="visitor-kicker">GOSTUJUĆI PRISTUP</p><h1>Moji razgovori</h1><p className="lead">Otvori ih u istom pregledniku. Brisanjem kolačića pristup se gubi.</p>
+    <main className="page"><p className="visitor-kicker">GOSTUJUĆI PRISTUP</p><h1>Moji razgovori</h1><p className="lead">Otvori ih u istom pregledniku ili ih oporavi pomoću unaprijed sačuvanog tajnog ključa.</p>
+      <p><Link to="/gost-oporavak">Oporavi razgovor tajnim ključem</Link></p>
       {error && <p className="notice error">{error} <button className="btn small ghost" onClick={load}>Pokušaj ponovo</button></p>}
       {!chats ? <p className="empty">Učitavanje razgovora…</p> : chats.length === 0 ? <div className="notice"><strong>Još nema razgovora.</strong><p className="meta">Skeniraj QR kod i pošalji zahtjev vlasniku.</p><Link className="btn" to="/skeniraj">Skeniraj QR kod</Link></div> :
         <ul className="list">{chats.map((c) => <li key={c.id}><div><strong>{c.ownerName}</strong>{c.unreadCount > 0 && <span className="badge" aria-label={`${c.unreadCount} nepročitanih poruka`}>{c.unreadCount}</span>}<div className="meta">{c.lastMessage?.body ?? (c.status === "pending" ? "Čeka se odobrenje" : c.status === "rejected" ? "Zahtjev nije odobren" : "Razgovor je otvoren")}</div></div><Link className="btn small ghost" to={`/gost/${c.id}`}>Otvori</Link></li>)}</ul>}
@@ -314,6 +241,7 @@ function VisitorThread({ id, ownerMode = false }: { id: string; ownerMode?: bool
           <textarea className="textarea" maxLength={4000} rows={2} value={draft} onChange={(e) => { draftRef.current = e.target.value; setDraft(e.target.value); }} placeholder="Napiši poruku…" disabled={!allowed || busy || locked || unavailable} aria-label="Poruka" />
           <div className="row" style={{ justifyContent: "space-between" }}><span className="meta">{draft.length}/4000</span><button className="btn" disabled={!draft.trim() || busy || locked}>{busy ? "Šaljem…" : "Pošalji"}</button></div>
         </form>}
+        {!ownerMode && allowed && !unavailable && <RecoveryTools key={id} id={id} />}
       </>}
     </div>
     {!ownerMode && <nav className="tabbar" aria-label="Navigacija"><Link to="/skeniraj">Skeniraj</Link><Link to="/gost-razgovori">Razgovori</Link><Link to="/prijava">Prijava</Link></nav>}

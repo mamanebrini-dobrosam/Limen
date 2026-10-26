@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 import { chromium } from "playwright-core";
 import QRCode from "qrcode";
+import pg from "pg";
 
 const base = process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : "http://127.0.0.1:5000";
 const fixturePath = "/tmp/limen-visitor-browser-fixtures.json";
@@ -93,6 +94,38 @@ try {
   await guest.getByText("Prva gostujuća", { exact: true }).waitFor();
   await guest.screenshot({ path: "/tmp/limen-guest-mobile.png", fullPage: true });
   console.log("PASS two-message limit, rejected bypass, owner reset, raised/unlimited limit, persistent history");
+  await guest.getByRole("button", { name: "Napravi ključ za oporavak", exact: true }).click();
+  const recoveryCode = await guest.getByLabel("Ključ za oporavak", { exact: true }).inputValue();
+  assert.ok(/^[A-Za-z0-9_-]{43}$/.test(recoveryCode), "Guest can save a recovery credential");
+  const [download] = await Promise.all([
+    guest.waitForEvent("download"),
+    guest.getByRole("button", { name: "Sačuvaj ključ u datoteku", exact: true }).click(),
+  ]);
+  const chunks = [];
+  for await (const chunk of await download.createReadStream()) chunks.push(chunk);
+  assert.ok(Buffer.concat(chunks).toString("utf8").includes(recoveryCode), "Download contains the key");
+  await download.delete();
+  const oldCookies = await guestContext.cookies();
+  await guestContext.clearCookies();
+  await guest.reload();
+  assert.equal((await guestContext.request.get(`${base}/api/visitor/conversations/${id}`)).status(), 404);
+  await guest.goto(`${base}/gost-oporavak`);
+  await guest.getByLabel("Sačuvani ključ za oporavak").fill(ownerUser.qrId);
+  await guest.getByRole("button", { name: "Oporavi razgovor", exact: true }).click();
+  await guest.getByRole("alert").getByText("Ključ za oporavak nije važeći ili je razgovor istekao.", { exact: true }).waitFor();
+  await guest.getByLabel("Sačuvani ključ za oporavak").fill(recoveryCode);
+  await guest.getByRole("button", { name: "Oporavi razgovor", exact: true }).click();
+  await guest.getByRole("status").waitFor();
+  const nextRecovery = await guest.getByLabel("Ključ za oporavak", { exact: true }).inputValue();
+  assert.ok(nextRecovery !== recoveryCode, "Recovery rotates the key");
+  const stale = await browser.newContext({ baseURL: base });
+  await stale.addCookies(oldCookies);
+  assert.equal((await stale.request.get(`${base}/api/visitor/conversations/${id}`)).status(), 404);
+  await stale.close();
+  assert.equal((await guestContext.request.post(`${base}/api/visitor/recover`, { headers: { "x-limen": "1" }, data: { recoveryCode } })).status(), 400);
+  await guest.getByRole("link", { name: "Nastavi razgovor", exact: true }).click();
+  await guest.getByText("Prva gostujuća", { exact: true }).waitFor();
+  console.log("PASS key download, cookie deletion, QR-only recovery rejected, secure recovery, old-cookie revocation and single-use key");
 
   const roomPage = await ownerContext.newPage();
   await roomPage.goto(base);
@@ -119,9 +152,24 @@ try {
     await guest.waitForURL(/\/potvrda/);
     fixtures.guestCreated = true;
     await fs.writeFile(fixturePath, JSON.stringify(fixtures));
+    const expired = await verifyEmail(guestContext, fixtures.guestEmail);
+    const { user: unverified } = await api(guestContext, "GET", "/me");
+    const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+    try {
+      await pool.query("update email_tokens set expires_at = now() - interval '1 minute' where user_id = $1 and purpose = 'verify'", [unverified.id]);
+    } finally { await pool.end(); }
+    await guest.goto(`${base}/potvrda?token=${expired}`);
+    await guest.getByText("Link za potvrdu nije važeći ili je istekao.", { exact: true }).waitFor();
+    await guest.goto(`${base}/potvrda?token=invalid-browser-verification-link`);
+    await guest.getByText("Link za potvrdu nije važeći ili je istekao.", { exact: true }).waitFor();
+    assert.equal((await api(guestContext, "GET", "/me")).user.emailVerified, false);
+    await guest.getByRole("button", { name: "Pošalji link ponovo", exact: true }).click();
+    await guest.getByText("Novi link je poslan.", { exact: true }).waitFor();
+    assert.equal(await guest.getByRole("link", { name: "Nastavi", exact: true }).count(), 0);
     const token = await verifyEmail(guestContext, fixtures.guestEmail);
     await guest.goto(`${base}/potvrda?token=${token}`);
     await guest.getByRole("link", { name: "Nastavi", exact: true }).click();
+    console.log("PASS expired/invalid verification links rejected, resend does not falsely verify, new development email link succeeds");
   } else {
     await guest.goto(`${base}/prijava?dalje=${encodeURIComponent(`/gost/${id}`)}`);
     await guest.getByLabel("Email", { exact: true }).fill(fixtures.guestEmail);
