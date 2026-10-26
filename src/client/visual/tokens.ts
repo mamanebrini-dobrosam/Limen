@@ -1,4 +1,5 @@
 import type { VisualSettings } from "./settings";
+import { effectivePaletteColor, paletteBackground, roomPalette } from "../../shared/room-palettes";
 
 export type VisualCssVariables = Record<`--${string}`, string>;
 
@@ -63,4 +64,25 @@ export function createVisualCssText(settings: VisualSettings): string {
     .map(([name, value]) => `${name}:${value}`)
     .join(";");
   return `:root{${declarations}}`;
+}
+
+/** Inline room tokens keep stored data-theme IDs intact, including legacy IDs. */
+export function createRoomPaletteStyle(id: string): Record<string, string> | undefined {
+  const palette = roomPalette(id);
+  if (!palette) return undefined;
+  return {
+    "--room-background": paletteBackground(palette),
+    "--room-foreground": palette.foreground,
+    "--room-panel": palette.tone === "light"
+      ? `color-mix(in srgb, ${palette.foreground} 4%, transparent)`
+      : `color-mix(in srgb, ${effectivePaletteColor(palette.end, palette.shade)} 76%, transparent)`,
+    "--room-panel-border": palette.tone === "light"
+      ? `color-mix(in srgb, ${palette.foreground} 28%, transparent)`
+      : `color-mix(in srgb, ${palette.foreground} 30%, transparent)`,
+    "--room-muted": palette.foreground,
+    "--room-ink": palette.foreground,
+    "--room-seat": effectivePaletteColor(palette.end, palette.shade),
+    "--room-host-background": effectivePaletteColor(palette.start, palette.shade),
+    "--room-host-foreground": palette.foreground,
+  };
 }

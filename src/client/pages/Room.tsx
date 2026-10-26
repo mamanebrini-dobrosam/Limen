@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { api, type Message, type RoomSection, type SessionState, type Seat } from "../api";
 import { getSocket } from "../socket";
 import { useAuth } from "../shell";
+import { createRoomPaletteStyle } from "../visual/tokens";
 
 type Role = "host" | "guest";
 type Invitation = { id: string; userId: string; displayName: string; status: string };
@@ -118,7 +119,7 @@ export function RoomView() {
   }
   if (ended) {
     return (
-      <div className="room" data-theme={theme} style={{ display: "grid", placeItems: "center", textAlign: "center", padding: 24 }}>
+      <div className="room" data-theme={theme} style={{ ...createRoomPaletteStyle(theme), display: "grid", placeItems: "center", textAlign: "center", padding: 24 }}>
         <div>
           <p style={{ fontSize: 19, maxWidth: "30ch", margin: "0 auto 20px" }}>{ended}</p>
           <button className="btn" style={{ background: "var(--krem)", color: "var(--noc)" }} onClick={() => nav("/")}>Na početnu</button>
@@ -132,7 +133,7 @@ export function RoomView() {
   const act = async (fn: () => Promise<unknown>) => { setError(null); try { await fn(); } catch (e) { setError((e as Error).message); } };
 
   return (
-    <div className="room" data-theme={theme}>
+    <div className="room" data-theme={theme} style={createRoomPaletteStyle(theme)}>
       <header className="room-top">
         <div className="title">
           {role === "host" ? "Tvoja soba" : `Soba: ${state.host.displayName}`}

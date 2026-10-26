@@ -5,30 +5,33 @@ import { MemoryRouter } from "react-router-dom";
 import { Brand } from "../src/client/visual/Brand";
 import { visualSettings } from "../src/client/visual/settings";
 import { createVisualCssText, createVisualCssVariables } from "../src/client/visual/tokens";
+import { ROOM_PALETTES, paletteBackground, paletteLogo } from "../src/shared/room-palettes";
 
 describe("LIMEN visual settings", () => {
-  it("keeps current palette, typography and static favicon defaults", () => {
+  it("uses the approved emerald and warm-ivory palette with source-image branding", () => {
     expect(visualSettings.palette).toMatchObject({
-      primary: "#50382c",
-      primaryDark: "#3a281f",
-      background: "#f5ebdd",
-      backgroundSecondary: "#ebdcc8",
-      night: "#26384a",
-      nightDark: "#1c2a38",
-      text: "#26384a",
-      mutedText: "#5c6670",
+      primary: "#034537",
+      primaryDark: "#02372d",
+      background: "#e9deca",
+      backgroundSecondary: "#ddd0b9",
+      night: "#062d23",
+      nightDark: "#021d15",
+      text: "#17372e",
+      mutedText: "#53665c",
     });
     expect(visualSettings.font.family).toBe('"Inter", system-ui, -apple-system, "Segoe UI", sans-serif');
-    expect(visualSettings.brand.favicon).toBe("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%2326384A'/%3E%3Cpath d='M9 26V9h3v14h11v3z' fill='%23F5EBDD'/%3E%3C/svg%3E");
+    expect(visualSettings.font.googleStylesheet).toBe("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
+    expect(visualSettings.brand.logoImage).toBe("/brand/palette/slonovaca.png");
+    expect(visualSettings.brand.favicon).toBe("/brand/palette/slonovaca.png");
     expect(visualSettings.layout.mobileBreakpoint).toBe(480);
   });
 
   it("generates deterministic CSS tokens without changing their configured values", () => {
     const variables = createVisualCssVariables(visualSettings);
-    expect(variables["--orah"]).toBe("#50382c");
+    expect(variables["--orah"]).toBe("#034537");
     expect(variables["--font"]).toBe(visualSettings.font.family);
     expect(variables["--layout-page-width"]).toBe("560px");
-    expect(createVisualCssText(visualSettings)).toContain("--navigation-background:#f5ebdd");
+    expect(createVisualCssText(visualSettings)).toContain("--navigation-background:#e9deca");
     expect(createVisualCssText(visualSettings)).toBe(createVisualCssText(visualSettings));
   });
 
@@ -62,6 +65,16 @@ describe("LIMEN visual settings", () => {
     const markup = renderToStaticMarkup(createElement(MemoryRouter, null, createElement(Brand)));
     expect(markup).toContain('href="/"');
     expect(markup).toContain('class="wordmark"');
-    expect(markup).toContain("LIMEN<small>mjesto gdje priče žive</small>");
+    expect(markup).toContain('src="/brand/palette/slonovaca.png"');
+    expect(markup).not.toContain("LIMEN<small>");
+  });
+
+  it("uses only the twelve approved source palette crops and preserves their coordinates", () => {
+    expect(ROOM_PALETTES).toHaveLength(12);
+    expect(paletteLogo(ROOM_PALETTES[0])).toBe("/brand/palette/smaragd.png");
+    expect(paletteBackground(ROOM_PALETTES[2])).toContain("#e9deca");
+    expect(ROOM_PALETTES.map(({ row, column }) => `${row}:${column}`)).toEqual([
+      "1:2", "1:3", "1:5", "2:2", "2:3", "3:1", "3:2", "3:4", "3:5", "4:1", "4:4", "4:5",
+    ]);
   });
 });

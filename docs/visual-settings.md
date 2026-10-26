@@ -29,7 +29,15 @@ layout: {
 },
 ```
 
-Za promjenu fonta prilagodite `font.family` i `font.googleStylesheet` zajedno. Favicon trenutno ostaje tačan SVG data URI iz `src/client/index.html`; vrijednost se primjenjuje pri pokretanju, dok statički HTML ostaje rezervni prikaz za slučaj prije pokretanja aplikacije. Mobilni prag se obrađuje JavaScript oznakom na korijenskom elementu, tako da se konfiguracija može koristiti u rasporedu bez `var()` izraza u media-query uslovima.
+Za promjenu fonta prilagodite `font.family` i `font.googleStylesheet` zajedno. Font ostaje Inter. Favicon i logo sada koriste originalni izrez tople slonovače iz dostavljene palete; putanje su u `brand.favicon` i `brand.logoImage` i primjenjuju se pri pokretanju. Mobilni prag se obrađuje JavaScript oznakom na korijenskom elementu, tako da se konfiguracija može koristiti u rasporedu bez `var()` izraza u media-query uslovima.
+
+## Odabrana paleta vlasnika
+
+Nova paleta je primijenjena na aplikacijske tokene. Pregled svih 12 zvaničnih
+pozadina je na `/paleta`, a vlasnik bira pozadinu na `/moja-soba`.
+Detalji o izvoru, čuvanju po sobi, kontrastu i zadržavanju prethodnih izbora:
+[LIMEN paleta](limen-palette.md). Podrazumijevane vrijednosti iz ranijeg
+primjera u ovom vodiču služe samo kao primjer konfiguracije.
 
 ## Granice konfiguracije
 

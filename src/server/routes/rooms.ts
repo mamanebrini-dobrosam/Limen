@@ -7,6 +7,7 @@ import { rateLimit, notify, hub } from "../lib/infra.js";
 import { requireVerified, me } from "../lib/auth.js";
 import * as rules from "../services/rules.js";
 import * as sessions from "../services/sessions.js";
+import { ROOM_THEME_IDS } from "../../shared/room-palettes.js";
 
 const s = schema;
 export const roomsRouter = Router();
@@ -29,7 +30,7 @@ roomsRouter.get("/rooms/mine", ah(async (req, res) => {
 }));
 
 roomsRouter.patch("/rooms/mine", ah(async (req, res) => {
-  const { theme } = z.object({ theme: z.enum(["orah", "kadulja", "noc", "krem"]) }).parse(req.body);
+  const { theme } = z.object({ theme: z.enum(ROOM_THEME_IDS) }).parse(req.body);
   await db.update(s.rooms).set({ theme }).where(eq(s.rooms.ownerId, me(req).id));
   res.json({ ok: true });
 }));

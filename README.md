@@ -62,7 +62,7 @@ Poker, šah, Čovječe ne ljuti se, sinhronizovani video/YouTube i prikaz fotogr
 
 ### Tehnička i vizuelna priprema
 
-- [Centralne vizuelne postavke bez promjene trenutnog izgleda](docs/visual-settings.md)
+- [Centralne vizuelne postavke](docs/visual-settings.md) i [odabrana LIMEN paleta](docs/limen-palette.md); razvojni pregled svih pozadina je na `/paleta`.
 - `npm run email:check` — provjera postavki bez slanja poruke ili ispisa vrijednosti.
 - `npm run test:browser` — odvojena testna baza i sintetički identiteti, bez promjene korisničke baze.
 - Prije značajnih izmjena sačuvaj checkpoint koda. Ne briši postojeće korisničke podatke, ne mijenjaj sigurnosna pravila ili ekonomiju tokena u sklopu vizuelne pripreme i ne uključuj plaćene usluge bez odobrenja vlasnika.

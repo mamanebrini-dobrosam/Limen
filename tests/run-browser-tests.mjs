@@ -14,6 +14,8 @@ const env = {
   SMTP_URL: "", SMTP_HOST: "", SMTP_PORT: "", SMTP_USER: "", SMTP_PASSWORD: "", MAIL_FROM: "",
 };
 const server = spawn(process.execPath, ["--import", "tsx", "tests/browser-server.ts"], { env, stdio: ["ignore", "pipe", "inherit"] });
+const allowedChecks = ["tests/browser-scanner.mjs", "tests/browser-visitor.mjs"];
+const requestedChecks = process.argv.slice(2);
 let timer;
 try {
   const base = await new Promise((resolve, reject) => {
@@ -28,8 +30,9 @@ try {
     server.once("exit", () => reject(new Error("Isolated browser server exited before readiness.")));
   });
   clearTimeout(timer);
-  for (const file of ["tests/browser-scanner.mjs", "tests/browser-visitor.mjs"]) {
-    const result = spawnSync(process.execPath, [file], {
+  for (const file of requestedChecks.length ? requestedChecks : allowedChecks) {
+    if (!allowedChecks.includes(file)) throw new Error("Unknown browser check.");
+    const result = spawnSync(process.execPath, ["--import", "tsx", file], {
       env: { ...env, LIMEN_BROWSER_BASE_URL: base }, stdio: "inherit", timeout: 180000,
     });
     if (result.status !== 0) throw new Error(`Browser check failed: ${file}`);

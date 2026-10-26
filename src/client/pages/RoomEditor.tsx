@@ -1,14 +1,8 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { api, type RoomSection } from "../api";
 import { Shell } from "../shell";
-
-const THEMES = [
-  { id: "orah", label: "Večernja soba" },
-  { id: "kadulja", label: "Kadulja" },
-  { id: "noc", label: "Noć" },
-  { id: "krem", label: "Dnevno svjetlo" },
-];
+import { ROOM_PALETTES, paletteBackground, paletteLogo, roomPalette } from "../../shared/room-palettes";
 
 export function RoomEditor() {
   const [sections, setSections] = useState<RoomSection[]>([]);
@@ -16,6 +10,9 @@ export function RoomEditor() {
   const [openSession, setOpenSession] = useState<string | null>(null);
   const [newTitle, setNewTitle] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [themeSaving, setThemeSaving] = useState(false);
+  const [themeStatus, setThemeStatus] = useState<string | null>(null);
+  const themeSaveLock = useRef(false);
 
   const load = useCallback(async () => {
     const [c, r] = await Promise.all([
@@ -26,6 +23,25 @@ export function RoomEditor() {
   }, []);
   useEffect(() => { load().catch(() => {}); }, [load]);
   const act = (fn: () => Promise<unknown>) => { setError(null); fn().then(load).catch((e) => setError(e.message)); };
+  const saveTheme = async (id: string) => {
+    if (themeSaveLock.current || id === theme) return;
+    themeSaveLock.current = true;
+    setThemeSaving(true);
+    setThemeStatus("Čuvanje izgleda…");
+    setError(null);
+    try {
+      await api.patch("/rooms/mine", { theme: id });
+      setTheme(id);
+      setThemeStatus("Izgled sobe je sačuvan.");
+    } catch (e) {
+      setThemeStatus(null);
+      setError((e as Error).message || "Izgled nije sačuvan. Pokušaj ponovo.");
+    } finally {
+      themeSaveLock.current = false;
+      setThemeSaving(false);
+    }
+  };
+  const selectedPalette = roomPalette(theme);
 
   return (
     <Shell>
@@ -34,11 +50,29 @@ export function RoomEditor() {
       {openSession && <p><Link className="btn warm" to={`/sto/${openSession}`}>Nazad za sto</Link></p>}
       {error && <p className="notice error" role="alert">{error}</p>}
 
-      <h2>Izgled sobe</h2>
-      <div className="row">
-        {THEMES.map((t) => (
-          <button key={t.id} className={`btn small ${theme === t.id ? "" : "ghost"}`} aria-pressed={theme === t.id}
-            onClick={() => act(() => api.patch("/rooms/mine", { theme: t.id }))}>{t.label}</button>
+      <div className="palette-heading">
+        <div>
+          <h2>Izgled sobe</h2>
+          <p className="lead">Odaberi jednu od dvanaest boja iz originalne LIMEN palete.</p>
+        </div>
+        <Link className="btn small ghost" to="/paleta">Pregled svih boja</Link>
+      </div>
+      {themeStatus && <p className="palette-save-status" role="status" aria-live="polite">{themeStatus}</p>}
+      {theme && !selectedPalette && <p className="notice palette-legacy" role="status">Trenutni izgled „{theme}“ je zadržan. Možeš ga ostaviti ili odabrati novu paletu.</p>}
+      <div className="palette-picker" role="group" aria-label="Odaberi izgled sobe">
+        {ROOM_PALETTES.map((palette) => (
+          <button type="button" key={palette.id} className={`palette-choice${theme === palette.id ? " is-selected" : ""}`}
+            aria-pressed={theme === palette.id} disabled={themeSaving} onClick={() => saveTheme(palette.id)}>
+            <span className="palette-choice-image" style={{ background: paletteBackground(palette) }}>
+              <img src={paletteLogo(palette)} alt="" />
+              <span className="palette-choice-gradient" aria-hidden="true" />
+            </span>
+            <span className="palette-choice-meta">
+              <span className="palette-choice-label">{palette.label}</span>
+              <span className="palette-choice-source">Izvor {palette.row}:{palette.column}</span>
+              {theme === palette.id && <span className="palette-choice-current">Trenutni izbor</span>}
+            </span>
+          </button>
         ))}
       </div>
 

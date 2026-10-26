@@ -5,3 +5,4 @@ storage/*
 .env
 *.log
 storage-test
+/generated-artifacts/

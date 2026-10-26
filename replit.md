@@ -159,8 +159,11 @@ The hook is non-interactive and refuses to run with `NODE_ENV=production`.
 
 ## Central presentation settings and final preparation
 
-- Presentation defaults live in `src/client/visual/settings.ts`. They retain the
-  existing wordmark, favicon, palette, Inter typography and layout. See
+- Presentation defaults live in `src/client/visual/settings.ts`. The owner's
+  selected source-image palette and logo crops are now applied; Inter and the
+  existing application structure remain. See [palette details](docs/limen-palette.md)
+  and the static `/paleta` review. Room choices are shared with server validation
+  through `src/shared/room-palettes.ts`; existing room choices are not rewritten. See
   [visual settings](docs/visual-settings.md) for future logo/icon, palette,
   button/navigation, home and mobile/desktop changes. These settings cannot
   change authentication, guest approval, message limits, retention or token values.

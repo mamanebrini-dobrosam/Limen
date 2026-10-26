@@ -13,6 +13,7 @@ import { DirectChats, DirectConversation, DirectRequests } from "./pages/DirectC
 import { GuestQr, GuestConversation, GuestConversations, OwnerGuestConversation } from "./pages/Visitor";
 import { Scanner } from "./pages/Scanner";
 import { RecoverGuest } from "./pages/GuestRecovery";
+import { PaletteReview } from "./pages/PaletteReview";
 import "./styles.css";
 import { applyVisualSettings } from "./visual/applyVisualSettings";
 
@@ -36,6 +37,7 @@ function App() {
           <Route path="/nova-lozinka" element={<Reset />} />
           <Route path="/potvrda" element={<Verify />} />
           <Route path="/skeniraj" element={<Scanner />} />
+          <Route path="/paleta" element={<PaletteReview />} />
           <Route path="/gost-razgovori" element={<GuestConversations />} />
           <Route path="/gost-oporavak" element={<RecoverGuest />} />
           <Route path="/gost/:id" element={<GuestConversation />} />
