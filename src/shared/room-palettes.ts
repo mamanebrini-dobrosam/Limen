@@ -26,10 +26,6 @@ export function roomPalette(id: string) {
   return ROOM_PALETTES.find((p) => p.id === id);
 }
 
-export function paletteLogo(palette: RoomPalette) {
-  return `/brand/palette/${palette.id}.png`;
-}
-
 /** A small copper-only darkening keeps normal-size cream text above WCAG AA. */
 export function effectivePaletteColor(hex: string, shade: number): string {
   return "#" + hex.slice(1).match(/.{2}/g)!.map((c) =>

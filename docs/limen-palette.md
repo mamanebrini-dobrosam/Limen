@@ -24,8 +24,11 @@ Crvene oznake nisu dizajn i nisu prenesene u aplikaciju.
 Boje su uzete kao medijan malih uzoraka čistog ruba svake odabrane pločice,
 daleko od logotipa. Nije pokušano nagađanje boje ispod crvenih oznaka.
 Pozadine su gradijenti tih boja, a ne rastegnute slike logotipa.
-Originalni logotip prikazuje se u pregledu i aplikacijskom brendiranju.
-Izrezi ne mijenjaju oblik simbola ili naziv „limen“.
+Izvorni izrezi 12 pločica služe za provjeru odabranih boja i porijekla palete,
+**ne kao zamjenski logotipi**. U pregledu, postavkama sobe i brendiranju uvijek
+se prikazuje ista zvanična slika logotipa u originalnim bojama, bez promjene
+simbola, proporcija, fonta ili natpisa „limen“. Gradijent iza slike određuje
+pozadinu sobe; slika logotipa se ne tonira.
 
 ## Kontrast
 

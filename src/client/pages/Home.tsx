@@ -81,7 +81,7 @@ export function Home() {
   };
 
   return (
-    <Shell>
+    <Shell wide>
       <section className="door" aria-labelledby="door-title">
         <h1 id="door-title">Dobro došao/la, {user?.displayName}.</h1>
         {status?.hostingSessionId ? (
@@ -103,46 +103,51 @@ export function Home() {
       </section>
       {error && <p className="notice error" role="alert">{error}</p>}
 
-      <h2>Pozivi</h2>
-      {invites.length === 0 ? <p className="empty">Trenutno nemaš poziva. Kad te neko pozove za svoj sto, poziv će biti ovdje.</p> : (
-        <ul className="list">
-          {invites.map((i) => (
-            <li key={i.id}>
-              <div>
-                <div>{i.hostName}</div>
-                <div className="meta">{i.status === "missed" ? "Propušten poziv – soba je još otvorena" : "Poziv za sto"}</div>
-              </div>
-              {i.requested ? <span className="meta">Čeka se odobrenje domaćina</span> : (
-                <div className="row">
-                  <button className="btn small" onClick={() => requestEntry(i)}>Zatraži ulazak</button>
-                  <button className="btn small ghost" onClick={() => api.post(`/invitations/${i.id}/decline`).then(load)}>Odbij</button>
-                </div>
-              )}
-            </li>
-          ))}
-        </ul>
-      )}
-
-      <h2>Obavijesti</h2>
-      {notes.length === 0 ? <p className="empty">Nema novih obavijesti.</p> : (
-        <ul className="list">
-          {notes.map((n) => (
-            <li key={n.id}>
-              <div>
-                <div style={{ fontWeight: n.readAt ? 400 : 600 }}>{describe(n)}</div>
-                <div className="meta">{new Date(n.createdAt).toLocaleString("bs-BA")}</div>
-              </div>
-              {n.type === "contact_request" && <Link className="btn small ghost" to="/kontakti">Pogledaj</Link>}
-              {n.type === "direct_request" && <Link className="btn small ghost" to="/chat/zahtjevi">Pogledaj</Link>}
-              {n.type === "visitor_request" && <Link className="btn small ghost" to="/chat/zahtjevi">Pogledaj</Link>}
-              {["visitor_approved", "visitor_rejected", "visitor_message"].includes(n.type) && n.payload.visitorChatId && <Link className="btn small ghost" to={`/gost-chat/${n.payload.visitorChatId}`}>Otvori razgovor</Link>}
-              {(n.type === "direct_approved" || n.type === "direct_message") && n.payload.conversationId && <Link className="btn small ghost" to={`/chat/${n.payload.conversationId}`}>Otvori razgovor</Link>}
-              {n.type === "direct_rejected" && <Link className="btn small ghost" to="/chat/zahtjevi">Pogledaj zahtjeve</Link>}
-              {n.type === "entry_request" && status?.hostingSessionId && <Link className="btn small ghost" to={`/sto/${status.hostingSessionId}`}>Za sto</Link>}
-            </li>
-          ))}
-        </ul>
-      )}
+      <div className="home-columns">
+        <section className="home-section">
+          <div className="section-heading"><p className="eyebrow">TVOJ KRUG</p><h2>Pozivi</h2></div>
+          {invites.length === 0 ? <p className="empty">Trenutno nemaš poziva. Kad te neko pozove za svoj sto, poziv će biti ovdje.</p> : (
+            <ul className="list">
+              {invites.map((i) => (
+                <li key={i.id}>
+                  <div>
+                    <div className="person-name">{i.hostName}</div>
+                    <div className="meta">{i.status === "missed" ? "Propušten poziv – soba je još otvorena" : "Poziv za sto"}</div>
+                  </div>
+                  {i.requested ? <span className="meta">Čeka se odobrenje domaćina</span> : (
+                    <div className="row">
+                      <button className="btn small" onClick={() => requestEntry(i)}>Zatraži ulazak</button>
+                      <button className="btn small ghost" onClick={() => api.post(`/invitations/${i.id}/decline`).then(load)}>Odbij</button>
+                    </div>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+        <section className="home-section">
+          <div className="section-heading"><p className="eyebrow">IZ TVOG KRUGA</p><h2>Obavijesti</h2></div>
+          {notes.length === 0 ? <p className="empty">Nema novih obavijesti.</p> : (
+            <ul className="list">
+              {notes.map((n) => (
+                <li key={n.id}>
+                  <div>
+                    <div style={{ fontWeight: n.readAt ? 400 : 600 }}>{describe(n)}</div>
+                    <div className="meta">{new Date(n.createdAt).toLocaleString("bs-BA")}</div>
+                  </div>
+                  {n.type === "contact_request" && <Link className="btn small ghost" to="/kontakti">Pogledaj</Link>}
+                  {n.type === "direct_request" && <Link className="btn small ghost" to="/chat/zahtjevi">Pogledaj</Link>}
+                  {n.type === "visitor_request" && <Link className="btn small ghost" to="/chat/zahtjevi">Pogledaj</Link>}
+                  {["visitor_approved", "visitor_rejected", "visitor_message"].includes(n.type) && n.payload.visitorChatId && <Link className="btn small ghost" to={`/gost-chat/${n.payload.visitorChatId}`}>Otvori razgovor</Link>}
+                  {(n.type === "direct_approved" || n.type === "direct_message") && n.payload.conversationId && <Link className="btn small ghost" to={`/chat/${n.payload.conversationId}`}>Otvori razgovor</Link>}
+                  {n.type === "direct_rejected" && <Link className="btn small ghost" to="/chat/zahtjevi">Pogledaj zahtjeve</Link>}
+                  {n.type === "entry_request" && status?.hostingSessionId && <Link className="btn small ghost" to={`/sto/${status.hostingSessionId}`}>Za sto</Link>}
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      </div>
 
       {choose && (
         <div className="dialog" role="dialog" aria-modal="true" aria-labelledby="choose-title">

@@ -2,7 +2,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { api, type RoomSection } from "../api";
 import { Shell } from "../shell";
-import { ROOM_PALETTES, paletteBackground, paletteLogo, roomPalette } from "../../shared/room-palettes";
+import { ROOM_PALETTES, paletteBackground, roomPalette } from "../../shared/room-palettes";
+import { visualSettings } from "../visual/settings";
 
 export function RoomEditor() {
   const [sections, setSections] = useState<RoomSection[]>([]);
@@ -44,7 +45,7 @@ export function RoomEditor() {
   const selectedPalette = roomPalette(theme);
 
   return (
-    <Shell>
+    <Shell wide>
       <h1>Moja soba</h1>
       <p className="lead">Samo ti uređuješ sobu. Gosti vide isključivo ono što označiš kao vidljivo gostima, i svi vide isto. Sve ostalo ostaje u tvom privatnom ormaru.</p>
       {openSession && <p><Link className="btn warm" to={`/sto/${openSession}`}>Nazad za sto</Link></p>}
@@ -64,7 +65,7 @@ export function RoomEditor() {
           <button type="button" key={palette.id} className={`palette-choice${theme === palette.id ? " is-selected" : ""}`}
             aria-pressed={theme === palette.id} disabled={themeSaving} onClick={() => saveTheme(palette.id)}>
             <span className="palette-choice-image" style={{ background: paletteBackground(palette) }}>
-              <img src={paletteLogo(palette)} alt="" />
+               <img src={visualSettings.brand.logoImage!} alt="" />
               <span className="palette-choice-gradient" aria-hidden="true" />
             </span>
             <span className="palette-choice-meta">

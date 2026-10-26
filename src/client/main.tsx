@@ -15,6 +15,7 @@ import { Scanner } from "./pages/Scanner";
 import { RecoverGuest } from "./pages/GuestRecovery";
 import { PaletteReview } from "./pages/PaletteReview";
 import "./styles.css";
+import "./visual/salon.css";
 import { applyVisualSettings } from "./visual/applyVisualSettings";
 
 function Protected({ children }: { children: React.ReactNode }) {

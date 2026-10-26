@@ -6,6 +6,21 @@ export async function verifyRoomPalettes({ ownerContext, guestContext, roomPage,
   const editor = await ownerContext.newPage();
   await editor.goto(`${base}/moja-soba`);
   await editor.getByRole("heading", { name: "Izgled sobe", exact: true }).waitFor();
+  const officialLogo = "/brand/palette/slonovaca.png";
+  const previewLogos = await editor.locator(".palette-choice-image img").evaluateAll((images) =>
+    images.map((img) => ({
+      path: new URL(img.src).pathname,
+      filter: getComputedStyle(img).filter,
+      opacity: getComputedStyle(img).opacity,
+      blend: getComputedStyle(img).mixBlendMode,
+    })));
+  assert.equal(previewLogos.length, 12);
+  for (const logo of previewLogos) {
+    assert.equal(logo.path, officialLogo, "All backgrounds retain the same official logo");
+    assert.equal(logo.filter, "none");
+    assert.equal(logo.opacity, "1");
+    assert.equal(logo.blend, "normal");
+  }
   assert.equal(await guestPage.getByRole("link", { name: "Uredi sobu", exact: true }).count(), 0);
   const mine = await api(ownerContext, "GET", "/rooms/mine");
   const guestBefore = (await api(guestContext, "GET", "/rooms/mine")).room.theme;
@@ -85,9 +100,21 @@ export async function verifyRoomPalettes({ ownerContext, guestContext, roomPage,
     await editor.screenshot({ path: `${dir}/owner-settings-desktop.jpg`, fullPage: true, type: "jpeg", quality: 80 });
     await editor.goto(base);
     await editor.getByRole("heading", { name: /Dobro/ }).first().waitFor();
+    assert.equal(await editor.locator(".tabbar a").count(), 5, "Keep all five real navigation routes");
+    assert.equal(await editor.locator(".shell").evaluate((el) => getComputedStyle(el).display), "grid", "Desktop uses approved salon sidebar");
+    assert.equal(await overflow(editor), false, "Desktop salon home overflow");
     await editor.screenshot({ path: `${dir}/home-desktop.jpg`, fullPage: true, type: "jpeg", quality: 80 });
+    await editor.setViewportSize({ width: 390, height: 844 });
+    assert.equal(await editor.locator(".shell").evaluate((el) => getComputedStyle(el).display), "flex", "Mobile keeps bottom navigation");
+    assert.equal(await overflow(editor), false, "Mobile salon home overflow");
+    await editor.screenshot({ path: `${dir}/home-mobile.jpg`, fullPage: true, type: "jpeg", quality: 80 });
+    await editor.setViewportSize({ width: 1280, height: 900 });
     await editor.goto(`${base}/paleta`);
     await editor.getByRole("heading", { name: "Palete sobe", exact: true }).waitFor();
+    const reviewLogoPaths = await editor.locator(".palette-review-swatch img").evaluateAll((images) =>
+      images.map((img) => new URL(img.src).pathname));
+    assert.equal(reviewLogoPaths.length, 12);
+    assert.ok(reviewLogoPaths.every((path) => path === officialLogo), "The public palette review must not swap the logo");
     await editor.screenshot({ path: `${dir}/palette-desktop.jpg`, fullPage: true, type: "jpeg", quality: 80 });
     await editor.setViewportSize({ width: 390, height: 844 });
     await editor.screenshot({ path: `${dir}/palette-mobile.jpg`, fullPage: true, type: "jpeg", quality: 80 });

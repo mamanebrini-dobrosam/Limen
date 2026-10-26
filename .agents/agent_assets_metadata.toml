@@ -1,0 +1,100 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "xEh52PXNmXbrwkrY-_yTO"
+uri = "file://generated-artifacts/limen-palette-review/palette-desktop.jpg"
+type = "image"
+title = "Pregled svih 12 pozadina"
+description = "Trenutna paleta u aplikaciji. Isti neizmijenjeni logo na svakoj pozadini; snimak s testnim podacima."
+logical_id = "b7738949-4885-47a7-b321-8b6a8f99ff13"
+content_hash = "sha256:54dfebe005f99244c1a75bb19bab7c268c2043a6435ced2e1fba14e0a1f27f3b"
+size = 198209
+mtime_ms = 1793027860689
+storage_uri = "gcs://replit-rams-assets-archer/rams/assets/repl:cbd53ceb-9357-41ce-9dca-7f0c857e3691/b7738949-4885-47a7-b321-8b6a8f99ff13/298edb0a-02d4-4aa8-a474-19f7d20de6b9"
+storage_version_token = "1793028006528980"
+content_type = "image/jpeg"
+
+[[outputs]]
+id = "CrLlMvJKoDVPXrJVM_SkE"
+uri = "file://generated-artifacts/limen-palette-review/home-desktop.jpg"
+type = "image"
+title = "Trenutna početna stranica"
+description = "Izgled na računaru s testnim nalogom i testnim obavijestima."
+logical_id = "950b5cfa-6e5a-4b60-8eb5-50d6efa9208a"
+content_hash = "sha256:eb87f8ce934dfcf2a3742d1e6821aefd2a13b2262a08fcd2116de2a68b11c6d9"
+size = 83462
+mtime_ms = 1793027859917
+storage_uri = "gcs://replit-rams-assets-archer/rams/assets/repl:cbd53ceb-9357-41ce-9dca-7f0c857e3691/950b5cfa-6e5a-4b60-8eb5-50d6efa9208a/274d9283-1859-4dc4-89f6-5258afa2e26c"
+storage_version_token = "1793028008022892"
+content_type = "image/jpeg"
+
+[[outputs]]
+id = "dHbkfrc4_6oVlztqiwHUT"
+uri = "file://generated-artifacts/limen-palette-review/room-mobile.jpg"
+type = "image"
+title = "Trenutna privatna soba na mobitelu"
+description = "Primjer testne sobe s pozadinom Zeleni obsidijan; ostalih 11 prikazano je u pregledu palete."
+logical_id = "e1036118-7001-4edf-904d-95471f1aba32"
+content_hash = "sha256:9f2baa5fe735647b490d44d0e229c375e598e7d505642a210fa9d93ad89b3c12"
+size = 30874
+mtime_ms = 1793027858485
+storage_uri = "gcs://replit-rams-assets-archer/rams/assets/repl:cbd53ceb-9357-41ce-9dca-7f0c857e3691/e1036118-7001-4edf-904d-95471f1aba32/47a5a214-3532-4fc5-866e-35efd8087429"
+storage_version_token = "1793028008765940"
+content_type = "image/jpeg"
+
+[[outputs]]
+id = "HQpDmsbkcC3hq64jBonRd"
+uri = "file://generated-artifacts/limen-design-proposals/proposal-a.jpg"
+type = "image"
+title = "A — Svijetli fokus"
+description = "Početna stranica i privatna soba: svijetle neutralne površine i suzdržan zeleni akcent. Samo prijedlog."
+logical_id = "869e0320-e58c-46b2-8a95-2c3fe3572454"
+content_hash = "sha256:6622648edf720f28c4c4ae9d631e7ad63fc0042b683c4047096f0154a5b4ec2e"
+size = 147299
+mtime_ms = 1793018350078
+storage_uri = "gcs://replit-rams-assets-archer/rams/assets/repl:cbd53ceb-9357-41ce-9dca-7f0c857e3691/869e0320-e58c-46b2-8a95-2c3fe3572454/9e206532-5ac6-4b60-a698-4f4ae9f01703"
+storage_version_token = "1793018442877316"
+content_type = "image/jpeg"
+
+[[outputs]]
+id = "NSIDla_dqL-kRzVoM1g_h"
+uri = "file://generated-artifacts/limen-design-proposals/proposal-b.jpg"
+type = "image"
+title = "B — Privatni salon"
+description = "Početna stranica i privatna soba: topli neutralni tonovi, bočna navigacija i mirniji ovalni stol. Samo prijedlog."
+logical_id = "75cc0fa4-aa11-47a9-90a3-8ce144edfc0e"
+content_hash = "sha256:2fcb93361a8d1d11a030a21841e2a70fae70600b501838e98dab88da3e76ea48"
+size = 130476
+mtime_ms = 1793018350326
+storage_uri = "gcs://replit-rams-assets-archer/rams/assets/repl:cbd53ceb-9357-41ce-9dca-7f0c857e3691/75cc0fa4-aa11-47a9-90a3-8ce144edfc0e/9b1f4e65-6c6d-4fba-95db-9467b09c8f89"
+storage_version_token = "1793018443739195"
+content_type = "image/jpeg"
+
+[[outputs]]
+id = "ySfJ6lAolTUAHOm6oCZoq"
+uri = "file://generated-artifacts/limen-design-proposals/proposal-c.jpg"
+type = "image"
+title = "C — Grafitni okvir"
+description = "Početna stranica i privatna soba: grafitni okvir, neutralni sadržaj i izdvojena površina za poruke. Samo prijedlog."
+logical_id = "69e8a6a1-2869-4f32-9c68-c7222475daf8"
+content_hash = "sha256:dbb75d3391b0d46e848555f7db23d05cdcf9b44deb7bcac21d78fc3823904c7b"
+size = 149166
+mtime_ms = 1793018350586
+storage_uri = "gcs://replit-rams-assets-archer/rams/assets/repl:cbd53ceb-9357-41ce-9dca-7f0c857e3691/69e8a6a1-2869-4f32-9c68-c7222475daf8/66e74a63-6ebd-4d85-9d0e-7ac98e107924"
+storage_version_token = "1793018444477652"
+content_type = "image/jpeg"
+
+[[outputs]]
+id = "THlPHBBATJNH3fASW6HHM"
+uri = "file://generated-artifacts/limen-palette-review/owner-settings-desktop.jpg"
+type = "image"
+title = "Izbor pozadine u postavkama sobe"
+description = "Kako vlasnik sada vidi svih 12 opcija; testni nalog, bez stvarnih korisničkih podataka."
+logical_id = "5a2c832f-6c94-453e-9782-c66a7a195ccd"
+content_hash = "sha256:d1aabf044e62dc366de0a2f9be4aeac230d98665e15106049432b3f83fe51271"
+size = 136942
+mtime_ms = 1793027859265
+storage_uri = "gcs://replit-rams-assets-archer/rams/assets/repl:cbd53ceb-9357-41ce-9dca-7f0c857e3691/5a2c832f-6c94-453e-9782-c66a7a195ccd/ebef009f-95de-40bb-9744-c77191b1d2b8"
+storage_version_token = "1793028007288811"
+content_type = "image/jpeg"

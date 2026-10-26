@@ -6,6 +6,11 @@ export type VisualCssVariables = Record<`--${string}`, string>;
 export function createVisualCssVariables(settings: VisualSettings): VisualCssVariables {
   const { palette, font, buttons, navigation, layout, home } = settings;
   return {
+    "--brand-logo-width": settings.brand.logoWidth,
+    "--brand-logo-mobile-width": settings.brand.mobileLogoWidth,
+    "--salon-panel": palette.panel,
+    "--salon-border": palette.border,
+    "--salon-table": palette.table,
     "--orah": palette.primary,
     "--orah-tamni": palette.primaryDark,
     "--krem": palette.background,
@@ -44,6 +49,8 @@ export function createVisualCssVariables(settings: VisualSettings): VisualCssVar
     "--navigation-inactive": navigation.inactive,
     "--navigation-padding": navigation.padding,
     "--navigation-tab-padding": navigation.tabPadding,
+    "--navigation-active-background": navigation.activeBackground,
+    "--layout-sidebar-width": layout.sidebarWidth,
     "--layout-page-width": layout.desktopPageWidth,
     "--layout-page-width-wide": layout.desktopWidePageWidth,
     "--layout-page-padding-mobile": layout.mobilePagePadding,

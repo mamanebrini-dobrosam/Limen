@@ -8,8 +8,12 @@ export const SESSION_COOKIE = "limen_sid";
 
 export type AuthUser = typeof schema.users.$inferSelect;
 
-declare module "express-serve-static-core" {
-  interface Request { user?: AuthUser; sessionTokenHash?: string }
+// Global augmentation also covers nested Express type copies in the workspace.
+// This is erased by TypeScript; request authentication below is unchanged.
+declare global {
+  namespace Express {
+    interface Request { user?: AuthUser; sessionTokenHash?: string }
+  }
 }
 
 export async function createSession(userId: string, userAgent?: string) {

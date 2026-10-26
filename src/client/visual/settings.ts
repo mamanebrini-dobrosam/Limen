@@ -5,6 +5,8 @@ export type VisualSettings = {
     title: string;
     favicon: string;
     logoImage: string | null;
+    logoWidth: string;
+    mobileLogoWidth: string;
   };
   palette: {
     primary: string;
@@ -23,6 +25,9 @@ export type VisualSettings = {
     highlight: string;
     inputBorder: string;
     inputText: string;
+    panel: string;
+    border: string;
+    table: string;
   };
   font: {
     family: string;
@@ -51,6 +56,7 @@ export type VisualSettings = {
     inactive: string;
     padding: string;
     tabPadding: string;
+    activeBackground: string;
   };
   layout: {
     mobileBreakpoint: number;
@@ -60,6 +66,7 @@ export type VisualSettings = {
     desktopWidePageWidth: string;
     mobileTopbarPadding: string;
     desktopTopbarPadding: string;
+    sidebarWidth: string;
   };
   home: {
     background: string;
@@ -82,68 +89,75 @@ export const visualSettings: VisualSettings = {
     title: "LIMEN — mjesto gdje priče žive",
     favicon: "/brand/palette/slonovaca.png",
     logoImage: "/brand/palette/slonovaca.png",
+    logoWidth: "102px",
+    mobileLogoWidth: "88px",
   },
   palette: {
-    primary: "#034537",
-    primaryDark: "#02372d",
-    background: "#e9deca",
-    backgroundSecondary: "#ddd0b9",
-    secondary: "#a87825",
-    secondaryDark: "#795316",
+    primary: "#355c4b",
+    primaryDark: "#294a3b",
+    background: "#f2eee5",
+    backgroundSecondary: "#e7e0d3",
+    secondary: "#986d34",
+    secondaryDark: "#765326",
     night: "#062d23",
     nightDark: "#021d15",
-    text: "#17372e",
-    mutedText: "#53665c",
-    surface: "#f8f2e8",
-    paperWhite: "#f8f2e8",
-    error: "#8d3028",
+    text: "#253a32",
+    mutedText: "#59675f",
+    surface: "#fbf9f3",
+    paperWhite: "#f6f2e9",
+    error: "#893b31",
     highlight: "#fff0c4",
-    inputBorder: "#b9aa91",
-    inputText: "#17372e",
+    inputBorder: "#cfc5b4",
+    inputText: "#293d33",
+    panel: "#f5f1e8",
+    border: "#d5ccbc",
+    table: "#e9e3d8",
   },
   font: {
     family: '"Inter", system-ui, -apple-system, "Segoe UI", sans-serif',
     googleStylesheet: "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap",
-    bodySize: "16px",
-    pageTitleSize: "26px",
-    sectionTitleSize: "18px",
+    bodySize: "15px",
+    pageTitleSize: "38px",
+    sectionTitleSize: "19px",
     wordmarkSize: "15px",
     taglineSize: "12px",
     navigationSize: "13px",
-    buttonSize: "16px",
+    buttonSize: "13px",
   },
   buttons: {
     height: "44px",
-    padding: "10px 18px",
-    radius: "6px",
+    padding: "9px 16px",
+    radius: "4px",
     weight: "600",
-    borderColor: "#b9aa91",
-    ghostHover: "#ddd0b9",
-    dangerBorder: "#d9b3ab",
+    borderColor: "#bcb29f",
+    ghostHover: "#ece6d9",
+    dangerBorder: "#cbb4ac",
   },
   navigation: {
-    background: "#e9deca",
-    border: "#d4c6ad",
-    active: "#062d23",
-    inactive: "#53665c",
+    background: "#eee8dc",
+    border: "#d5ccbc",
+    active: "#243b31",
+    inactive: "#58665e",
     padding: "6px 4px calc(6px + env(safe-area-inset-bottom))",
     tabPadding: "8px 4px",
+    activeBackground: "#dfd8c9",
   },
   layout: {
-    mobileBreakpoint: 480,
-    mobilePagePadding: "16px",
-    desktopPagePadding: "16px",
+    mobileBreakpoint: 767,
+    mobilePagePadding: "23px 18px 100px",
+    desktopPagePadding: "40px clamp(28px, 5vw, 72px) 50px",
     desktopPageWidth: "560px",
-    desktopWidePageWidth: "760px",
-    mobileTopbarPadding: "14px 16px",
-    desktopTopbarPadding: "14px 16px",
+    desktopWidePageWidth: "1240px",
+    mobileTopbarPadding: "12px 18px",
+    desktopTopbarPadding: "18px 25px",
+    sidebarWidth: "220px",
   },
   home: {
-    background: "radial-gradient(110% 90% at 84% 0%, #087260 0%, #034537 42%, #021d15 100%)",
-    foreground: "#fff9e8",
-    padding: "26px 22px 22px",
-    radius: "12px",
-    titleSize: "24px",
-    copyColor: "#d9e8dc",
+    background: "linear-gradient(90deg, #f6f3eb 0%, #f6f3eb 62%, #ece6da 100%)",
+    foreground: "#253a32",
+    padding: "clamp(26px, 4vw, 46px)",
+    radius: "5px",
+    titleSize: "38px",
+    copyColor: "#536159",
   },
 };

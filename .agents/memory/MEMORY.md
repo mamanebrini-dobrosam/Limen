@@ -2,3 +2,4 @@
 - [Browser testing](browser-testing.md) — the testing-subagent configuration may be unavailable; use real local Playwright checks rather than skipping browser verification.
 - [QR validation](qr-validation.md) — test full application QR payloads and independent decoding; a short fixture can pass while valid real QR patterns fail.
 - [LIMEN visual identity](limen-visual-identity.md) — preserve the original doorway symbol and lowercase name; red annotations identify choices, never design colors.
+- [Express request type augmentation](express-type-augmentation.md) — duplicate type resolution can hide request fields; keep type fixes separate from auth behavior.

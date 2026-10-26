@@ -1,0 +1,19 @@
+kind = "design"
+previewPath = "/__mockup/"
+title = "LIMEN — vizuelni prijedlozi"
+description = "Odvojeni prototipi početne stranice i privatne sobe za odobrenje, bez izmjena postojeće LIMEN aplikacije."
+version = "1.0.0"
+id = "artifacts/mockup-sandbox"
+router = "path"
+
+[[services]]
+name = "Component Preview Server"
+paths = [ "/__mockup/" ]
+localPort = 23636
+
+[services.development]
+run = "npm run dev"
+
+[services.env]
+PORT = "23636"
+BASE_PATH = "/__mockup/"

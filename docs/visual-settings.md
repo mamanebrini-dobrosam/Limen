@@ -2,16 +2,16 @@
 
 ## Gdje se postavke nalaze
 
-Izvorna, tipizirana konfiguracija je `src/client/visual/settings.ts`. Podrazumijevane vrijednosti namjerno odgovaraju postojećem LIMEN izgledu.
+Izvorna, tipizirana konfiguracija je `src/client/visual/settings.ts`. Podrazumijevane vrijednosti odgovaraju vlasnikovom odabranom prijedlogu **B — Privatni salon**: tople neutralne površine, miran zeleni akcenat, bočna navigacija na računarima i ovalni sto.
 
-- `brand`: naziv, tagline, naslov stranice, URI favicon-a i opcionalna putanja do slike logotipa.
-- `palette`: osnovne i sekundarne boje, pozadina, tekst, naglasci i stanja.
+- `brand`: naziv, tagline, naslov stranice, URI favicon-a, neizmijenjen originalni logo i njegove širine na mobilnom i računaru.
+- `palette`: osnovne i sekundarne boje, pozadina, tekst, naglasci, neutralne površine stola/panela i stanja.
 - `font`: porodica, trenutni Google Fonts stylesheet i osnovne veličine teksta.
 - `buttons` i `navigation`: dimenzije, boje i razmaci kontrola.
-- `layout`: prag mobilnog prikaza, širine stranica i razmaci za mobilni/desktop prikaz.
+- `layout`: prag mobilnog prikaza, širina bočne navigacije, širine stranica i razmaci za mobilni/desktop prikaz.
 - `home`: pozadina, boja, unutrašnji razmak, zaobljenje i tipografija početnog istaknutog bloka.
 
-`src/client/visual/tokens.ts` pretvara postavke u CSS custom properties. `src/client/visual/applyVisualSettings.ts` ih primjenjuje i ažurira naslov dokumenta, boju preglednika, favicon i font stylesheet pri pokretanju, prije `createRoot`. `src/client/visual/Brand.tsx` je zajednički wordmark za navigaciju; bez slike logotipa prikazuje isti tekst i tagline. Po želji, sliku se može zadati lokalnom putanjom u `brand.logoImage`; ostavite `null` da se koristi trenutni wordmark.
+`src/client/visual/tokens.ts` pretvara postavke u CSS custom properties. `src/client/visual/applyVisualSettings.ts` ih primjenjuje i ažurira naslov dokumenta, boju preglednika, favicon i font stylesheet pri pokretanju, prije `createRoot`. `src/client/visual/Brand.tsx` je zajednički wordmark za navigaciju. Zvanični logo ostaje ista neoznačena originalna slika; `brand.logoImage` i favicon usmjeravaju na nju, a postavke pozadina ne mijenjaju te putanje. `src/client/visual/salon.css` opisuje raspored i responzivno ponašanje odabranog prijedloga; boje i dimenzije preuzima iz centralnih postavki. Zadržana je stvarna navigacija sa svih pet stavki, a ne prototipska navigacija sa dvije stranice.
 
 Primjer izmjene budućeg izgleda:
 
@@ -41,7 +41,7 @@ primjera u ovom vodiču služe samo kao primjer konfiguracije.
 
 ## Granice konfiguracije
 
-Ove postavke mijenjaju samo vizuelni prikaz. Ne postoji trajno čuvanje postavki, administratorski uređivač ni nova ruta. Ne mijenjati niti izlagati kroz vizuelne postavke pravila pristupa, autentifikacije, autorizacije, privatnosti, verifikacije, QR pristupa, oporavka, ograničenja zahtjeva, trajanja tokena ili sigurnosnih tajni. Takva pravila ostaju nepromjenjiva u aplikacionoj/server logici.
+Ove centralne postavke mijenjaju samo podrazumijevani vizuelni prikaz. Centralni izgled nema zasebno čuvanje u bazi, administratorski uređivač ni novu rutu. Postojeći vlasnički izbor jedne od 12 pozadina i dalje se čuva za svaku sobu posebno; gosti ne mogu mijenjati izbor. Ne mijenjati niti izlagati kroz vizuelne postavke pravila pristupa, autentifikacije, autorizacije, privatnosti, verifikacije, QR pristupa, oporavka, ograničenja zahtjeva, trajanja tokena ili sigurnosnih tajni. Takva pravila ostaju nepromjenjiva u aplikacionoj/server logici.
 
 ## Provjera podrazumijevanog prikaza
 
