@@ -1,4 +1,4 @@
-modules = ["nodejs-22", "postgresql-16"]
+modules = ["nodejs-20", "web"]
 run = "npm run replit"
 
 [deployment]
@@ -9,3 +9,6 @@ run = ["npm", "start"]
 [[ports]]
 localPort = 5000
 externalPort = 80
+
+[nix]
+channel = "stable-25_05"
