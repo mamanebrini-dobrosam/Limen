@@ -14,14 +14,30 @@ let counter = 0;
 export async function startTestServer(): Promise<Ctx> {
   await runMigrations();
   await db.execute(sql`truncate users, rate_limits, dev_outbox, admin_audit_log cascade`);
+  return listenTestServer(0);
+}
+
+async function listenTestServer(port: number): Promise<Ctx> {
   const { server, io } = createServer();
-  await new Promise<void>((r) => server.listen(0, "127.0.0.1", () => r()));
+  await new Promise<void>((resolve, reject) => {
+    server.once("error", reject);
+    server.listen(port, "127.0.0.1", () => {
+      server.off("error", reject);
+      resolve();
+    });
+  });
   startSweeper();
-  const port = (server.address() as AddressInfo).port;
+  const boundPort = (server.address() as AddressInfo).port;
   return {
-    base: `http://127.0.0.1:${port}`,
-    close: async () => { stopSweeper(); io.close(); await new Promise((r) => server.close(() => r(null))); },
+    base: `http://127.0.0.1:${boundPort}`,
+    close: async () => { stopSweeper(); await io.close(); },
   };
+}
+
+export async function restartTestServer(ctx: Ctx): Promise<Ctx> {
+  const port = Number(new URL(ctx.base).port);
+  await ctx.close();
+  return listenTestServer(port);
 }
 
 export class Client {

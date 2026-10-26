@@ -34,8 +34,10 @@ Do not invent an admin email or SMTP credentials.
 
 - Set `APP_URL` to the confirmed published URL and configure real SMTP delivery
   (`SMTP_URL`, `MAIL_FROM`).
-- Photos currently live in local `storage/`; durable object storage is needed
-  before relying on uploaded photos in production.
+- Production photos use Replit App Storage. Development and tests use local
+  `storage/`. Before the first production release with App Storage, run
+  `npm run media:migrate-to-object-storage` where the existing `STORAGE_DIR`,
+  configured database, and App Storage bucket are all accessible.
 - The current single-process Socket.IO design and presence sweeper need a
   continuously running single server.
 - Production does not run startup migrations. Replit's Publish flow applies the

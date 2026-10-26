@@ -1,0 +1,1 @@
+- [Private media storage](private-media-storage.md) — keep object storage private and serve images only after the existing server-side authorization checks.

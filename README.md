@@ -33,7 +33,7 @@ Ovo je **Faza 1 MVP**: registracija (18+), QR kontakti, pozivi, soba sa šest mj
 - **Email:** bez `SMTP_URL` emailovi se ne šalju, nego se ispisuju u log servera. U razvoju se vide i na `/api/dev/outbox` (u produkciji isključeno).
 - **Skeniranje QR-a:** QR sadrži link `.../c/<kod>`. Otvara se kamerom telefona; u aplikaciji se kod može i upisati. Nema ugrađenog skenera.
 - **Provjera godina:** unos datuma rođenja i potvrda. Nema provjere dokumenta.
-- **Pohrana fotografija:** lokalni disk (`storage/`). Za trajnu produkciju treba prebaciti na Replit Object Storage ili S3, jer se disk kod nekih deploymenta briše pri novom objavljivanju.
+- **Pohrana fotografija:** Replit App Storage u produkciji; lokalni disk (`storage/`) samo u razvoju i testovima. Prije prve produkcijske objave koja koristi App Storage, prenesi postojeće fotografije komandom `npm run media:migrate-to-object-storage` u okruženju koje ima pristup postojećem `STORAGE_DIR` i Replit App Storage.
 - **Više server instanci:** rokovi i limiti su u bazi, ali websocket događaji idu kroz jedan proces. Za više instanci treba Socket.IO Redis adapter.
 - **Pravna politika čuvanja podataka:** nije definisana; brisanje naloga uklanja vezu s autorom, ali to nije pravna procjena.
 

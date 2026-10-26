@@ -3,14 +3,48 @@ import path from "node:path";
 import sharp from "sharp";
 import { eq } from "drizzle-orm";
 import { fileTypeFromBuffer } from "file-type";
+import { Client as ObjectStorageClient } from "@replit/object-storage";
 import { config } from "../config.js";
 import { db, schema } from "../db/client.js";
 import { bad, randomToken } from "./core.js";
 
 const ALLOWED = new Set(["image/jpeg", "image/png", "image/webp"]);
+const OBJECT_PREFIX = "media/";
+let objectStorageClient: ObjectStorageClient | undefined;
 
-function storagePath(key: string) {
-  return path.resolve(config.storageDir, key);
+function localStoragePath(key: string) {
+  const root = path.resolve(config.storageDir);
+  const resolved = path.resolve(root, key);
+  if (!resolved.startsWith(`${root}${path.sep}`)) throw new Error("Invalid media storage key");
+  return resolved;
+}
+
+export function objectStorageName(key: string) {
+  return `${OBJECT_PREFIX}${key}`;
+}
+
+function getObjectStorageClient() {
+  objectStorageClient ??= new ObjectStorageClient();
+  return objectStorageClient;
+}
+
+async function writeAsset(storageKey: string, bytes: Buffer) {
+  if (config.mediaStorageBackend === "object") {
+    const result = await getObjectStorageClient().uploadFromBytes(objectStorageName(storageKey), bytes, { compress: false });
+    if (!result.ok) throw new Error(`App Storage upload failed: ${result.error.message}`);
+    return;
+  }
+  await fs.mkdir(path.resolve(config.storageDir), { recursive: true });
+  await fs.writeFile(localStoragePath(storageKey), bytes);
+}
+
+export async function readAsset(storageKey: string) {
+  if (config.mediaStorageBackend === "object") {
+    const result = await getObjectStorageClient().downloadAsBytes(objectStorageName(storageKey));
+    if (!result.ok) throw new Error(`App Storage download failed: ${result.error.message}`);
+    return result.value[0];
+  }
+  return fs.readFile(localStoragePath(storageKey));
 }
 
 /**
@@ -32,29 +66,39 @@ export async function storeImage(buf: Buffer, ownerId: string, purpose: "chat" |
     throw bad("bad_image", "Fotografiju nije moguće obraditi.");
   }
   const key = `${randomToken(18)}.jpg`;
-  await fs.mkdir(path.resolve(config.storageDir), { recursive: true });
-  await fs.writeFile(storagePath(key), out);
-  const [asset] = await db.insert(schema.mediaAssets).values({
-    ownerId, purpose, storageKey: key, mime: "image/jpeg", bytes: out.length, width: info.width, height: info.height,
-  }).returning();
-  return asset;
+  await writeAsset(key, out);
+  try {
+    const [asset] = await db.insert(schema.mediaAssets).values({
+      ownerId, purpose, storageKey: key, mime: "image/jpeg", bytes: out.length, width: info.width, height: info.height,
+    }).returning();
+    return asset;
+  } catch (error) {
+    await deleteAssetFile(key);
+    throw error;
+  }
 }
 
 export async function copyAsset(assetId: string, newOwnerId: string, purpose: "gallery") {
   const [a] = await db.select().from(schema.mediaAssets).where(eq(schema.mediaAssets.id, assetId));
   if (!a) throw bad("not_found", "Fotografija ne postoji.");
   const key = `${randomToken(18)}.jpg`;
-  await fs.copyFile(storagePath(a.storageKey), storagePath(key));
-  const [copy] = await db.insert(schema.mediaAssets).values({
-    ownerId: newOwnerId, purpose, storageKey: key, mime: a.mime, bytes: a.bytes, width: a.width, height: a.height,
-  }).returning();
-  return copy;
-}
-
-export async function readAsset(storageKey: string) {
-  return fs.readFile(storagePath(storageKey));
+  await writeAsset(key, await readAsset(a.storageKey));
+  try {
+    const [copy] = await db.insert(schema.mediaAssets).values({
+      ownerId: newOwnerId, purpose, storageKey: key, mime: a.mime, bytes: a.bytes, width: a.width, height: a.height,
+    }).returning();
+    return copy;
+  } catch (error) {
+    await deleteAssetFile(key);
+    throw error;
+  }
 }
 
 export async function deleteAssetFile(storageKey: string) {
-  await fs.rm(storagePath(storageKey), { force: true });
+  if (config.mediaStorageBackend === "object") {
+    const result = await getObjectStorageClient().delete(objectStorageName(storageKey), { ignoreNotFound: true });
+    if (!result.ok) throw new Error(`App Storage delete failed: ${result.error.message}`);
+    return;
+  }
+  await fs.rm(localStoragePath(storageKey), { force: true });
 }

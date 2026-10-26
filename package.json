@@ -8,6 +8,7 @@
     "start": "NODE_ENV=production tsx src/server/index.ts",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx src/server/db/migrate.ts",
+    "media:migrate-to-object-storage": "tsx src/server/scripts/migrate-media-to-object-storage.ts",
     "test": "vitest run",
     "typecheck": "tsc -p .",
     "replit": "vite build && tsx src/server/index.ts"
@@ -17,6 +18,7 @@
   "license": "UNLICENSED",
   "dependencies": {
     "@node-rs/argon2": "^2.2.2",
+    "@replit/object-storage": "^1.0.0",
     "cookie-parser": "^1.4.7",
     "drizzle-orm": "^0.45.4",
     "express": "^5.3.0",

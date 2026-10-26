@@ -1,6 +1,13 @@
 // Centralna konfiguracija. Sve vrijednosti dolaze iz okruženja (.env), uz sigurne podrazumijevane vrijednosti za razvoj.
 
 const env = process.env;
+const mediaStorageBackend = env.NODE_ENV === "production"
+  ? "object"
+  : env.MEDIA_STORAGE_BACKEND ?? "local";
+
+if (mediaStorageBackend !== "local" && mediaStorageBackend !== "object") {
+  throw new Error("MEDIA_STORAGE_BACKEND mora biti 'local' ili 'object'");
+}
 
 function int(name: string, def: number): number {
   const v = env[name];
@@ -19,6 +26,7 @@ export const config = {
   appUrl: env.APP_URL ?? (env.NODE_ENV !== "production" && env.REPLIT_DEV_DOMAIN
     ? `https://${env.REPLIT_DEV_DOMAIN}` : "http://localhost:5173"),
   storageDir: env.STORAGE_DIR ?? "storage",
+  mediaStorageBackend,
   adminEmails: (env.ADMIN_EMAILS ?? "").split(",").map((s) => s.trim().toLowerCase()).filter(Boolean),
   smtpUrl: env.SMTP_URL ?? "",
   mailFrom: env.MAIL_FROM ?? "LIMEN <no-reply@limen.local>",

@@ -5,7 +5,7 @@ import { db } from "../src/server/db/client.js";
 import { config } from "../src/server/config.js";
 import {
   Client, startTestServer, newUser, connect, openRoom, invite, seat, say, readBodies, sleep, waitFor, latestToken,
-  type Ctx,
+  restartTestServer, type Ctx,
 } from "./helpers.js";
 
 let ctx: Ctx;
@@ -185,6 +185,7 @@ async function jpegWithGps(): Promise<Buffer> {
 describe("Test 5 – gost ne može pristupiti privatnoj galeriji", () => {
   it("vidi samo sadržaj odobren svim gostima; privatne fotografije nisu dostupne ni direktnim ID-em", async () => {
     const { host, guests: [g1, g2] } = await hostWithGuests(2);
+    const outsider = await newUser(ctx);
     const content = (await host.get("/api/room/content")).body.sections;
     const gallery = content.find((x: { kind: string }) => x.kind === "gallery");
     const img = await jpegWithGps();
@@ -205,6 +206,7 @@ describe("Test 5 – gost ne može pristupiti privatnoj galeriji", () => {
 
     expect((await g1.get(`/api/media/${pub.body.item.mediaId}`)).status).toBe(200);
     expect((await g1.get(`/api/media/${priv.body.item.mediaId}`)).status).toBe(404);
+    expect((await outsider.get(`/api/media/${priv.body.item.mediaId}`)).status).toBe(404);
     expect((await g1.get("/api/room/content")).body.sections.flatMap((x: { items: unknown[] }) => x.items)).toHaveLength(0); // svoja soba
     expect((await g1.patch(`/api/room/items/${pub.body.item.id}`, { sharedWithGuests: false })).status).toBe(404);
     expect((await host.get(`/api/media/${priv.body.item.mediaId}`)).status).toBe(200);
@@ -212,6 +214,21 @@ describe("Test 5 – gost ne može pristupiti privatnoj galeriji", () => {
     // nakon zatvaranja sobe ni javni sadržaj više nije dostupan gostu
     await host.post(`/api/sessions/${sessionId}/close`);
     expect((await g1.get(`/api/media/${pub.body.item.mediaId}`)).status).toBe(404);
+  });
+
+  it("sačuvana fotografija ostaje dostupna nakon ponovnog pokretanja servera", async () => {
+    const host = await newUser(ctx);
+    const outsider = await newUser(ctx);
+    const gallery = (await host.get("/api/room/content")).body.sections.find((x: { kind: string }) => x.kind === "gallery");
+    const uploaded = await host.upload("/api/room/items/image", await jpegWithGps(), { sectionId: gallery.id });
+    expect(uploaded.status).toBe(201);
+    const mediaId = uploaded.body.item.mediaId;
+    expect((await outsider.get(`/api/media/${mediaId}`)).status).toBe(404);
+
+    ctx = await restartTestServer(ctx);
+
+    expect((await host.get(`/api/media/${mediaId}`)).status).toBe(200);
+    expect((await outsider.get(`/api/media/${mediaId}`)).status).toBe(404);
   });
 
   it("uklanja EXIF/GPS, prihvata samo stvarne fotografije", async () => {
