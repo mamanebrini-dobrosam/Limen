@@ -30,6 +30,13 @@ Do not invent an admin email or SMTP credentials.
 - Integration tests: `TEST_DATABASE_URL=<separate test database> npm test`.
   The suite truncates tables; never point it at an app database containing data.
 
+## After task merges
+
+Replit runs `scripts/post-merge.sh` automatically. It installs the locked npm
+dependencies, applies migrations to the development database, and builds the
+client. Workflow reconciliation then restarts the running application.
+The hook is non-interactive and refuses to run with `NODE_ENV=production`.
+
 ## Before publishing
 
 - Set `APP_URL` to the confirmed published URL and configure real SMTP delivery
