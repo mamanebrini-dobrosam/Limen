@@ -16,7 +16,7 @@ async function pending() {
   const scan = await guest.get(`/api/visitor/qr/${owner.qrId}`);
   expect(scan.status).toBe(200);
   expect(scan.body.chat).toBeNull();
-  const r = await guest.post("/api/visitor/requests", { qrId: owner.qrId, displayName: "Gost bez profila" });
+  const r = await guest.post("/api/visitor/requests", { qrId: owner.qrId, displayName: "Gost bez profila", confirmAdult: true });
   expect(r.status).toBe(200);
   return { owner, guest, id: r.body.chat.id as string };
 }
@@ -146,6 +146,21 @@ async function verifyGuest(guest: Client) {
 }
 
 describe("Gostujući identitet bez LIMEN profila", () => {
+  it("zahtijeva izričitu 18+ potvrdu prije stvaranja gostujućeg zahtjeva", async () => {
+    const owner = await newUser(ctx);
+    const guest = new Client(ctx);
+    expect((await guest.get(`/api/visitor/qr/${owner.qrId}`)).status).toBe(200);
+    for (const confirmAdult of [undefined, false, "true", 1]) {
+      const result = await guest.post("/api/visitor/requests", {
+        qrId: owner.qrId, displayName: "Gost", confirmAdult,
+      });
+      expect(result.status).toBe(400);
+      expect(await db.$count(s.visitorChats, eq(s.visitorChats.ownerId, owner.id))).toBe(0);
+    }
+    expect((await guest.post("/api/visitor/requests", {
+      qrId: owner.qrId, displayName: "Gost", confirmAdult: true,
+    })).status).toBe(200);
+  });
   it("QR i zahtjev ne kreiraju korisnički profil niti otvaraju chat bez odobrenja", async () => {
     const before = await db.$count(s.users);
     const { guest, owner, id } = await pending();
@@ -184,7 +199,7 @@ describe("Gostujući identitet bez LIMEN profila", () => {
   it("ponovljeni zahtjevi istog preglednika nemaju duplikate", async () => {
     const { owner, guest, id } = await pending();
     const replies = await Promise.all(Array.from({ length: 3 }, () =>
-      guest.post("/api/visitor/requests", { qrId: owner.qrId, displayName: "Isti gost" })));
+      guest.post("/api/visitor/requests", { qrId: owner.qrId, displayName: "Isti gost", confirmAdult: true })));
     expect(replies.every((r) => r.status === 200 && r.body.chat.id === id)).toBe(true);
     expect(await db.$count(s.visitorChats, eq(s.visitorChats.ownerId, owner.id))).toBe(1);
   });
@@ -195,9 +210,9 @@ describe("Gostujući identitet bez LIMEN profila", () => {
     expect((await guest.get(guestPath(id))).body.chat.status).toBe("rejected");
     expect((await guestSend(guest, id)).status).toBe(403);
     expect((await owner.post(`${ownerPath(id)}/approve`)).status).toBe(409);
-    expect((await guest.post("/api/visitor/requests", { qrId: owner.qrId, displayName: "Gost" })).status).toBe(409);
+    expect((await guest.post("/api/visitor/requests", { qrId: owner.qrId, displayName: "Gost", confirmAdult: true })).status).toBe(409);
     await db.update(s.visitorChats).set({ decidedAt: sql`now() - interval '25 hours'` }).where(eq(s.visitorChats.id, id));
-    expect((await guest.post("/api/visitor/requests", { qrId: owner.qrId, displayName: "Gost" })).body.chat.status).toBe("pending");
+    expect((await guest.post("/api/visitor/requests", { qrId: owner.qrId, displayName: "Gost", confirmAdult: true })).body.chat.status).toBe("pending");
     expect((await guestSend(guest, id)).status).toBe(403);
   });
 
@@ -319,7 +334,7 @@ describe("Gostujući chat se briše nakon 30 dana bez poruke", () => {
     expect(await db.$count(s.visitorMessages, eq(s.visitorMessages.chatId, id))).toBe(0);
     expect((await guest.get("/api/visitor/mine")).body.chats).toEqual([]);
     await guest.get(`/api/visitor/qr/${owner.qrId}`);
-    const next = await guest.post("/api/visitor/requests", { qrId: owner.qrId, displayName: "Ponovni gost" });
+    const next = await guest.post("/api/visitor/requests", { qrId: owner.qrId, displayName: "Ponovni gost", confirmAdult: true });
     expect(next.body.chat.id).not.toBe(id);
     expect(next.body.chat.status).toBe("pending");
     expect((await guestSend(guest, next.body.chat.id)).status).toBe(403);

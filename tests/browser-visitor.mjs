@@ -68,6 +68,8 @@ try {
   await guest.locator('input[type="file"]').setInputFiles({ name: "limen-owner-qr.png", mimeType: "image/png", buffer: png });
   await guest.waitForURL((u) => u.pathname === `/c/${ownerUser.qrId}`);
   await guest.getByLabel("Ime ili nadimak").fill(nickname);
+  assert.equal(await guest.getByRole("button", { name: "Pošalji zahtjev", exact: true }).isDisabled(), true);
+  await guest.getByLabel("Potvrđujem da imam najmanje 18 godina.").check();
   await guest.getByRole("button", { name: "Pošalji zahtjev", exact: true }).click();
   await guest.waitForURL(/\/gost\/[a-f0-9-]+/);
   const id = new URL(guest.url()).pathname.split("/").pop();

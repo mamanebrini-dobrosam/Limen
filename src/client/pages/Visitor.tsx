@@ -26,6 +26,7 @@ export function GuestQr() {
   const [owner, setOwner] = useState<{ id: string; displayName: string } | null>(null);
   const [chat, setChat] = useState<GuestChat | null>(null);
   const [displayName, setDisplayName] = useState("");
+  const [confirmAdult, setConfirmAdult] = useState(false);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<Error | string>("");
@@ -40,10 +41,10 @@ export function GuestQr() {
   }, [qrId, user?.emailVerified]);
   if (user?.emailVerified) return <ConnectByQr />;
   const submit = async (e: FormEvent) => {
-    e.preventDefault(); if (busy) return;
+    e.preventDefault(); if (busy || !confirmAdult) return;
     setBusy(true); setError("");
     try {
-      const r = await api.post<{ chat: GuestChat }>("/visitor/requests", { qrId, displayName: displayName.trim() });
+      const r = await api.post<{ chat: GuestChat }>("/visitor/requests", { qrId, displayName: displayName.trim(), confirmAdult });
       setChat(r.chat); nav(`/gost/${encodeURIComponent(r.chat.id)}`, { replace: true });
     } catch (e2) { setError(e2 instanceof Error ? e2 : friendlyError(e2)); } finally { setBusy(false); }
   };
@@ -55,7 +56,8 @@ export function GuestQr() {
       {!loading && owner && !chat && <form onSubmit={submit}>
         <p className="lead">Ostavi ime ili nadimak. Ništa se ne šalje dok izričito ne potvrdiš zahtjev.</p>
         <label className="field"><span>Ime ili nadimak</span><input className="input" maxLength={40} minLength={2} required value={displayName} onChange={(e) => setDisplayName(e.target.value)} /></label>
-        <button className="btn block" disabled={busy || displayName.trim().length < 2}>{busy ? "Šaljem zahtjev…" : "Pošalji zahtjev"}</button>
+        <label className="check"><input type="checkbox" checked={confirmAdult} onChange={(e) => setConfirmAdult(e.target.checked)} required /><span>Potvrđujem da imam najmanje 18 godina.</span></label>
+        <button className="btn block" disabled={busy || !confirmAdult || displayName.trim().length < 2}>{busy ? "Šaljem zahtjev…" : "Pošalji zahtjev"}</button>
       </form>}
       <p className="meta" style={{ marginTop: 18 }}>QR kod ne daje pristup privatnoj sobi ni sadržajima vlasnika.</p>
       <p><Link to="/skeniraj">Skeniraj drugi kod</Link> · <Link to="/gost-razgovori">Moji gostujući razgovori</Link></p>

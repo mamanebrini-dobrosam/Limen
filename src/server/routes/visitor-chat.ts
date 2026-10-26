@@ -24,7 +24,11 @@ visitorChatRouter.post("/recover", ah(async (req, res) => {
   res.json(await visitor.recoverVisitor(req, res, recoveryCode));
 }));
 visitorChatRouter.post("/requests", ah(async (req, res) => {
-  const data = z.object({ qrId: qr, displayName: z.string().trim().min(2).max(40) }).parse(req.body);
+  const data = z.object({
+    qrId: qr,
+    displayName: z.string().trim().min(2).max(40),
+    confirmAdult: z.literal(true, { message: "Potvrdi da imaš najmanje 18 godina." }),
+  }).parse(req.body);
   await rateLimit("visitorRequest", `ip:${req.ip}`);
   res.json(await visitor.requestVisitorChat(req, res, data.qrId, data.displayName));
 }));
