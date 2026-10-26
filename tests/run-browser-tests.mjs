@@ -14,7 +14,7 @@ const env = {
   SMTP_URL: "", SMTP_HOST: "", SMTP_PORT: "", SMTP_USER: "", SMTP_PASSWORD: "", MAIL_FROM: "",
 };
 const server = spawn(process.execPath, ["--import", "tsx", "tests/browser-server.ts"], { env, stdio: ["ignore", "pipe", "inherit"] });
-const allowedChecks = ["tests/browser-scanner.mjs", "tests/browser-visitor.mjs"];
+const allowedChecks = ["tests/browser-scanner.mjs", "tests/browser-visitor.mjs", "tests/browser-rate-limit.mjs"];
 const requestedChecks = process.argv.slice(2);
 let timer;
 try {

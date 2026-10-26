@@ -3,6 +3,7 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { api, ApiError, type User } from "../api";
 import { useAuth } from "../shell";
 import { Brand } from "../visual/Brand";
+import { ErrorNotice } from "../components/ErrorNotice";
 
 function safeReturn(value: string | null | undefined) {
   return value && value.startsWith("/") && !value.startsWith("//") && !/[\\\u0000-\u0020]/.test(value) ? value : "/";
@@ -31,11 +32,11 @@ function AuthFrame({ title, lead, children }: { title: string; lead?: string; ch
 }
 
 function useForm() {
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<ApiError | string | null>(null);
   const [busy, setBusy] = useState(false);
   const run = async (fn: () => Promise<void>) => {
     setError(null); setBusy(true);
-    try { await fn(); } catch (e) { setError(e instanceof ApiError ? e.message : "Nešto nije u redu. Pokušaj ponovo."); }
+    try { await fn(); } catch (e) { setError(e instanceof ApiError ? e : "Nešto nije u redu. Pokušaj ponovo."); }
     setBusy(false);
   };
   return { error, busy, run };
@@ -55,7 +56,7 @@ export function Login() {
       }); }}>
         <label className="field"><span>Email</span><input className="input" type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} /></label>
         <label className="field"><span>Lozinka</span><input className="input" type="password" autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} /></label>
-        {f.error && <p className="notice error" role="alert">{f.error}</p>}
+        <ErrorNotice error={f.error} />
         <button className="btn block" disabled={f.busy}>Prijavi se</button>
       </form>
       <p className="row" style={{ justifyContent: "space-between", marginTop: 18 }}>
@@ -85,7 +86,7 @@ export function Register() {
         <label className="field"><span>Lozinka</span><input className="input" type="password" autoComplete="new-password" required minLength={10} value={v.password} onChange={set("password")} /><small>Najmanje 10 znakova.</small></label>
         <label className="field"><span>Datum rođenja</span><input className="input" type="date" required value={v.birthDate} onChange={set("birthDate")} /></label>
         <label className="check"><input type="checkbox" checked={v.confirmAdult} onChange={set("confirmAdult")} required /><span>Potvrđujem da imam najmanje 18 godina.</span></label>
-        {f.error && <p className="notice error" role="alert">{f.error}</p>}
+        <ErrorNotice error={f.error} />
         <button className="btn block" disabled={f.busy}>Napravi nalog</button>
       </form>
       <p style={{ marginTop: 18 }}>Već imaš nalog? <Link to="/prijava">Prijavi se</Link></p>
@@ -98,7 +99,7 @@ export function Verify() {
   const nav = useNavigate();
   const [params] = useSearchParams();
   const token = params.get("token");
-  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [msg, setMsg] = useState<{ ok: true; text: string } | { ok: false; text: Error | string } | null>(null);
   const [confirmed, setConfirmed] = useState(false);
   const verification = useRef<{ token: string; promise: Promise<unknown> } | null>(null);
   useEffect(() => {
@@ -111,7 +112,7 @@ export function Verify() {
       .then(async () => {
         if (!active) return;
         setMsg({ ok: true, text: "Email je potvrđen." }); setConfirmed(true); await refresh();
-      }).catch((e) => { if (active) setMsg({ ok: false, text: e.message }); });
+      }).catch((e) => { if (active) setMsg({ ok: false, text: e instanceof Error ? e : "Potvrda nije uspjela." }); });
     return () => { active = false; };
   }, [token, refresh]);
   useEffect(() => {
@@ -120,11 +121,11 @@ export function Verify() {
   if (user?.emailVerified && !token) return null;
   return (
     <AuthFrame title="Potvrdi email" lead={user ? `Poslali smo link na ${user.email}. Otvori ga da potvrdiš adresu.` : undefined}>
-      {msg && <p className={`notice ${msg.ok ? "ok" : "error"}`}>{msg.text}</p>}
+      {msg && (msg.ok ? <p className="notice ok">{msg.text}</p> : <ErrorNotice error={msg.text} />)}
       {confirmed && <Link className="btn block" to={safeReturn(sessionStorage.getItem("limen:return"))} onClick={() => sessionStorage.removeItem("limen:return")}>Nastavi</Link>}
       {user && !user.emailVerified && !confirmed && (
         <div className="stack">
-          <button className="btn ghost block" onClick={() => api.post("/auth/resend-verification").then(() => setMsg({ ok: true, text: "Novi link je poslan." })).catch((e) => setMsg({ ok: false, text: e.message }))}>Pošalji link ponovo</button>
+          <button className="btn ghost block" onClick={() => api.post("/auth/resend-verification").then(() => setMsg({ ok: true, text: "Novi link je poslan." })).catch((e) => setMsg({ ok: false, text: e instanceof Error ? e : "Slanje nije uspjelo." }))}>Pošalji link ponovo</button>
           <button className="btn ghost block" onClick={() => refresh()}>Već sam potvrdio/la</button>
         </div>
       )}
@@ -141,7 +142,7 @@ export function Forgot() {
       {sent ? <p className="notice ok">Ako nalog s ovom adresom postoji, link je poslan. Važi 1 sat.</p> : (
         <form onSubmit={(e) => { e.preventDefault(); f.run(async () => { await api.post("/auth/forgot-password", { email }); setSent(true); }); }}>
           <label className="field"><span>Email</span><input className="input" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} /></label>
-          {f.error && <p className="notice error">{f.error}</p>}
+          <ErrorNotice error={f.error} />
           <button className="btn block" disabled={f.busy}>Pošalji link</button>
         </form>
       )}
@@ -159,7 +160,7 @@ export function Reset() {
       {done ? <p className="notice ok">Lozinka je promijenjena. <Link to="/prijava">Prijavi se</Link></p> : (
         <form onSubmit={(e) => { e.preventDefault(); f.run(async () => { await api.post("/auth/reset-password", { token: params.get("token"), password }); setDone(true); }); }}>
           <label className="field"><span>Nova lozinka</span><input className="input" type="password" autoComplete="new-password" minLength={10} required value={password} onChange={(e) => setPassword(e.target.value)} /></label>
-          {f.error && <p className="notice error">{f.error}</p>}
+          <ErrorNotice error={f.error} />
           <button className="btn block" disabled={f.busy}>Sačuvaj lozinku</button>
         </form>
       )}

@@ -1,5 +1,7 @@
+import { retryDeadline } from "./lib/rate-limit";
+
 export class ApiError extends Error {
-  constructor(public status: number, public code: string, message: string) { super(message); }
+  constructor(public status: number, public code: string, message: string, public retryAt?: number) { super(message); }
 }
 
 async function call<T>(method: string, url: string, body?: unknown, isForm = false): Promise<T> {
@@ -10,7 +12,10 @@ async function call<T>(method: string, url: string, body?: unknown, isForm = fal
     body: body === undefined ? undefined : isForm ? (body as FormData) : JSON.stringify(body),
   });
   const data = res.headers.get("content-type")?.includes("json") ? await res.json() : null;
-  if (!res.ok) throw new ApiError(res.status, data?.error ?? "error", data?.message ?? "Nešto nije u redu. Pokušaj ponovo.");
+  if (!res.ok) throw new ApiError(
+    res.status, data?.error ?? "error", data?.message ?? "Nešto nije u redu. Pokušaj ponovo.",
+    res.status === 429 ? retryDeadline(data?.retryAfter, res.headers.get("retry-after")) : undefined,
+  );
   return data as T;
 }
 

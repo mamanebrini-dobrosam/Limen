@@ -5,6 +5,7 @@ import { Shell, useAuth } from "../shell";
 import { ConnectByQr } from "./Contacts";
 import { RecoveryTools } from "./GuestRecovery";
 import { Brand } from "../visual/Brand";
+import { ErrorNotice } from "../components/ErrorNotice";
 
 type GuestMessage = { id: number; chatId: string; sender: "owner" | "guest"; body: string; createdAt: string };
 type GuestChat = {
@@ -27,13 +28,13 @@ export function GuestQr() {
   const [displayName, setDisplayName] = useState("");
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
+  const [error, setError] = useState<Error | string>("");
   useEffect(() => {
     if (user?.emailVerified) return;
     let active = true;
     api.get<{ owner: { id: string; displayName: string }; chat: GuestChat | null }>(`/visitor/qr/${encodeURIComponent(qrId)}`)
       .then((r) => { if (active) { setOwner(r.owner); setChat(r.chat); } })
-      .catch((e) => { if (active) setError(friendlyError(e)); })
+      .catch((e) => { if (active) setError(e instanceof Error ? e : friendlyError(e)); })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, [qrId, user?.emailVerified]);
@@ -44,11 +45,11 @@ export function GuestQr() {
     try {
       const r = await api.post<{ chat: GuestChat }>("/visitor/requests", { qrId, displayName: displayName.trim() });
       setChat(r.chat); nav(`/gost/${encodeURIComponent(r.chat.id)}`, { replace: true });
-    } catch (e2) { setError(friendlyError(e2)); } finally { setBusy(false); }
+    } catch (e2) { setError(e2 instanceof Error ? e2 : friendlyError(e2)); } finally { setBusy(false); }
   };
   return <div className="shell"><header className="topbar"><Brand /><Link to="/prijava">Prijava</Link></header>
     <main className="page"><p className="visitor-kicker">LIČNI POZIV</p><h1>{loading ? "Provjeravam QR kod…" : owner ? `Razgovor s ${owner.displayName}` : "QR kod nije dostupan"}</h1>
-      {error && <p className="notice error" role="alert">{error}</p>}
+      <ErrorNotice error={error} />
       {chat && <p className={`notice ${chat.status === "rejected" ? "" : "ok"}`}>{chat.status === "pending" ? "Zahtjev je poslan. Čeka se odluka vlasnika." : chat.status === "approved" ? "Zahtjev je odobren. Razgovor je spreman." : "Ovaj zahtjev nije odobren."}</p>}
       {chat && chat.status !== "rejected" && <Link className="btn block" to={`/gost/${chat.id}`}>Otvori gostujući razgovor</Link>}
       {!loading && owner && !chat && <form onSubmit={submit}>
