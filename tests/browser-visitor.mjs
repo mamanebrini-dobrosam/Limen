@@ -7,6 +7,7 @@ import QRCode from "qrcode";
 import pg from "pg";
 import { browserBase as base } from "./browser-target.mjs";
 import { verifyRoomPalettes } from "./browser-palettes.mjs";
+import { verifyProfileEditor } from "./browser-profile-editor.mjs";
 
 const fixturePath = process.env.LIMEN_BROWSER_BASE_URL ? "/tmp/limen-visitor-isolated-fixtures.json" : "/tmp/limen-visitor-browser-fixtures.json";
 const password = "Browser-Limen-123!";
@@ -199,6 +200,7 @@ try {
   await guest.getByRole("link", { name: "Vrati se za sto", exact: true }).click();
   await guest.waitForURL((u) => u.pathname === `/sto/${sessionId}`);
   await until(async () => (await guestContext.request.get(`${base}/api/sessions/${sessionId}/room`)).ok(), "separate room admission");
+  await verifyProfileEditor({ ownerContext, guestContext, api, base });
   await verifyRoomPalettes({ ownerContext, guestContext, roomPage, guestPage: guest, api, base });
   await guest.getByRole("button", { name: "Napusti sto", exact: true }).click();
   await until(async () => (await guestContext.request.get(`${base}/api/sessions/${sessionId}/room`)).status() === 403, "room access revoked on leave");

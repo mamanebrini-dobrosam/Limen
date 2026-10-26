@@ -1,11 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { api, type RoomSection } from "../api";
 import { Shell } from "../shell";
 import { ROOM_PALETTES, paletteBackground, roomPalette } from "../../shared/room-palettes";
 import { visualSettings } from "../visual/settings";
+import "./RoomEditor.css";
+
+type SectionDraft = { text: string; kind: "text" | "quote" };
 
 export function RoomEditor() {
+  const navigate = useNavigate();
   const [sections, setSections] = useState<RoomSection[]>([]);
   const [theme, setTheme] = useState("orah");
   const [openSession, setOpenSession] = useState<string | null>(null);
@@ -14,6 +18,16 @@ export function RoomEditor() {
   const [themeSaving, setThemeSaving] = useState(false);
   const [themeStatus, setThemeStatus] = useState<string | null>(null);
   const themeSaveLock = useRef(false);
+  const [drafts, setDrafts] = useState<Record<string, SectionDraft>>({});
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const saveLock = useRef(false);
+  const mounted = useRef(true);
+  const exitTo = openSession ? `/sto/${openSession}` : "/";
+  useEffect(() => {
+    mounted.current = true;
+    return () => { mounted.current = false; };
+  }, []);
 
   const load = useCallback(async () => {
     const [c, r] = await Promise.all([
@@ -22,8 +36,45 @@ export function RoomEditor() {
     ]);
     setSections(c.sections); setTheme(c.theme); setOpenSession(r.openSessionId);
   }, []);
-  useEffect(() => { load().catch(() => {}); }, [load]);
-  const act = (fn: () => Promise<unknown>) => { setError(null); fn().then(load).catch((e) => setError(e.message)); };
+  useEffect(() => {
+    load().catch((e) => setError(e.message)).finally(() => setLoading(false));
+  }, [load]);
+  const act = (fn: () => Promise<unknown>) => {
+    if (saveLock.current) return;
+    saveLock.current = true;
+    setSaving(true);
+    setError(null);
+    fn().then(load).catch((e) => setError(e.message)).finally(() => {
+      saveLock.current = false;
+      setSaving(false);
+    });
+  };
+  const saveAndExit = async () => {
+    if (saveLock.current || themeSaveLock.current || loading) return;
+    saveLock.current = true;
+    setSaving(true);
+    setError(null);
+    try {
+      for (const sec of sections) {
+        if (!mounted.current) return;
+        const draft = drafts[sec.id];
+        if (!draft?.text.trim()) continue;
+        await api.post("/room/items", { sectionId: sec.id, kind: draft.kind, text: draft.text });
+        setDrafts((current) => ({ ...current, [sec.id]: { ...draft, text: "" } }));
+      }
+      if (!mounted.current) return;
+      if (newTitle.trim()) {
+        await api.post("/room/sections", { title: newTitle });
+        setNewTitle("");
+      }
+      if (mounted.current) navigate(exitTo);
+    } catch (e) {
+      setError((e as Error).message || "Promjene nisu sačuvane. Pokušaj ponovo.");
+    } finally {
+      saveLock.current = false;
+      setSaving(false);
+    }
+  };
   const saveTheme = async (id: string) => {
     if (themeSaveLock.current || id === theme) return;
     themeSaveLock.current = true;
@@ -46,11 +97,20 @@ export function RoomEditor() {
 
   return (
     <Shell wide>
+      <div className="row profile-editor-actions" role="group" aria-label="Uređivanje profila">
+        <Link className="btn ghost" to={exitTo}>Nazad</Link>
+        <button className="btn" type="button" disabled={loading || saving || themeSaving} onClick={saveAndExit}>
+          {saving ? "Čuvanje…" : "Sačuvaj promjene"}
+        </button>
+        <Link className="btn ghost" to={exitTo}>Odustani</Link>
+      </div>
       <h1>Moja soba</h1>
       <p className="lead">Samo ti uređuješ sobu. Gosti vide isključivo ono što označiš kao vidljivo gostima, i svi vide isto. Sve ostalo ostaje u tvom privatnom ormaru.</p>
       {openSession && <p><Link className="btn warm" to={`/sto/${openSession}`}>Nazad za sto</Link></p>}
       {error && <p className="notice error" role="alert">{error}</p>}
+      <p className="meta">„Sačuvaj promjene“ čuva unesene tekstove i novu cjelinu. „Nazad“ i „Odustani“ odbacuju samo nesačuvane unose. Izbor pozadine, „Dodaj“, brisanje i vidljivost gostima čuvaju se odmah.</p>
 
+      <fieldset className="profile-editor-fields" disabled={loading || saving || themeSaving}>
       <div className="palette-heading">
         <div>
           <h2>Izgled sobe</h2>
@@ -77,13 +137,16 @@ export function RoomEditor() {
         ))}
       </div>
 
-      {sections.map((sec) => <SectionEditor key={sec.id} sec={sec} act={act} />)}
+      {sections.map((sec) => <SectionEditor key={sec.id} sec={sec} act={act}
+        draft={drafts[sec.id] ?? { text: "", kind: sec.kind === "vision" ? "quote" : "text" }}
+        onDraft={(draft) => setDrafts((current) => ({ ...current, [sec.id]: draft }))} />)}
 
       <h2>Nova cjelina</h2>
       <form className="row" onSubmit={(e) => { e.preventDefault(); if (newTitle.trim()) act(async () => { await api.post("/room/sections", { title: newTitle }); setNewTitle(""); }); }}>
         <input className="input" style={{ flex: 1, minWidth: 180 }} placeholder="npr. Putovanja" value={newTitle} onChange={(e) => setNewTitle(e.target.value)} maxLength={40} aria-label="Naziv nove cjeline" />
         <button className="btn">Dodaj cjelinu</button>
       </form>
+      </fieldset>
     </Shell>
   );
 }
@@ -99,9 +162,13 @@ function ShareToggle({ id, initial, act }: { id: string; initial: boolean; act: 
   );
 }
 
-function SectionEditor({ sec, act }: { sec: RoomSection; act: (fn: () => Promise<unknown>) => void }) {
-  const [text, setText] = useState("");
-  const [kind, setKind] = useState<"text" | "quote">(sec.kind === "vision" ? "quote" : "text");
+function SectionEditor({ sec, act, draft, onDraft }: {
+  sec: RoomSection; act: (fn: () => Promise<unknown>) => void;
+  draft: SectionDraft; onDraft: (draft: SectionDraft) => void;
+}) {
+  const { text, kind } = draft;
+  const setText = (text: string) => onDraft({ ...draft, text });
+  const setKind = (kind: SectionDraft["kind"]) => onDraft({ ...draft, kind });
   const isGallery = sec.kind === "gallery";
   return (
     <section>
@@ -121,7 +188,7 @@ function SectionEditor({ sec, act }: { sec: RoomSection; act: (fn: () => Promise
       ))}
       <div className="row" style={{ marginTop: 10 }}>
         <form className="row" style={{ flex: 1 }} onSubmit={(e) => { e.preventDefault(); if (text.trim()) act(async () => { await api.post("/room/items", { sectionId: sec.id, kind, text }); setText(""); }); }}>
-          <input className="input" style={{ flex: 1, minWidth: 160 }} placeholder={kind === "quote" ? "Citat" : "Tekst"} value={text} onChange={(e) => setText(e.target.value)} aria-label={`Novi sadržaj za ${sec.title}`} />
+          <input className="input" style={{ flex: 1, minWidth: 160 }} placeholder={kind === "quote" ? "Citat" : "Tekst"} value={text} onChange={(e) => setText(e.target.value)} maxLength={2000} aria-label={`Novi sadržaj za ${sec.title}`} />
           <select className="input" style={{ width: "auto" }} value={kind} onChange={(e) => setKind(e.target.value as "text" | "quote")} aria-label="Vrsta">
             <option value="text">Tekst</option><option value="quote">Citat</option>
           </select>

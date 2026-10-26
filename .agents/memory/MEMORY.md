@@ -4,3 +4,4 @@
 - [LIMEN visual identity](limen-visual-identity.md) — preserve the original doorway symbol and lowercase name; red annotations identify choices, never design colors.
 - [Express request type augmentation](express-type-augmentation.md) — duplicate type resolution can hide request fields; keep type fixes separate from auth behavior.
 - [Real email ownership](email-ownership.md) — never unblock a real account through test mail or a manual verified flag; require actual mailbox delivery.
+- [Profile editor exit](profile-editor-exit.md) — optional profile content must never prevent leaving; preserve existing saved data and immediate-save behavior.

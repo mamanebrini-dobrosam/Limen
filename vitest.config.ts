@@ -7,6 +7,14 @@ export default defineConfig({
     hookTimeout: 30000,
     env: {
       NODE_ENV: "test",
+      // Never inherit the real mail provider from workspace Secrets.
+      SMTP_URL: "",
+      SMTP_HOST: "",
+      SMTP_PORT: "",
+      SMTP_USER: "",
+      SMTP_PASSWORD: "",
+      MAIL_FROM: "",
+      APP_URL: "http://localhost:5173",
       DATABASE_URL: process.env.TEST_DATABASE_URL ?? "postgres://postgres@localhost:5432/limen_test?host=/tmp",
       HOST_GRACE_MS: "600",
       GUEST_GRACE_MS: "600",

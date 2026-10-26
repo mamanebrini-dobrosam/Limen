@@ -1,0 +1,11 @@
+.profile-editor-actions {
+  position: sticky;
+  top: env(safe-area-inset-top, 0px);
+  z-index: 5;
+  padding: 12px 0;
+  margin-bottom: 16px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--input-border);
+}
+.profile-editor-actions .btn { font-size: 14px; }
+.profile-editor-fields { border: 0; padding: 0; margin: 0; min-width: 0; }
