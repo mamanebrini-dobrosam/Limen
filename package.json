@@ -10,7 +10,9 @@
     "db:migrate": "tsx src/server/db/migrate.ts",
     "media:migrate-to-object-storage": "tsx src/server/scripts/migrate-media-to-object-storage.ts",
     "test": "vitest run",
+    "test:browser": "node tests/run-browser-tests.mjs",
     "typecheck": "tsc -p .",
+    "email:check": "tsx src/server/scripts/check-email.ts",
     "replit": "vite build && tsx src/server/index.ts"
   },
   "keywords": [],

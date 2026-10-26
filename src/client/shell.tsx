@@ -2,6 +2,7 @@ import React, { createContext, useCallback, useContext, useEffect, useRef, useSt
 import { NavLink, Link } from "react-router-dom";
 import { api, type User } from "./api";
 import { getSocket, resetSocket } from "./socket";
+import { Brand } from "./visual/Brand";
 
 type AuthCtx = { user: User | null; loading: boolean; refresh: () => Promise<void>; setUser: (u: User | null) => void };
 const Ctx = createContext<AuthCtx>({ user: null, loading: true, refresh: async () => {}, setUser: () => {} });
@@ -41,9 +42,9 @@ export function Shell({ children, wide }: { children: React.ReactNode; wide?: bo
   return (
     <div className="shell">
       <header className="topbar">
-        <Link to="/" className="wordmark">LIMEN<small>mjesto gdje priče žive</small></Link>
+        <Brand />
       </header>
-      <main className="page" style={wide ? { maxWidth: 760 } : undefined}>{children}</main>
+      <main className="page" style={wide ? { maxWidth: "var(--layout-page-width-wide)" } : undefined}>{children}</main>
       <nav className="tabbar" aria-label="Glavna navigacija">
         <NavLink to="/" end>Početna{unread > 0 && <span className="badge" aria-label={`${unread} novih obavijesti`}>{unread}</span>}</NavLink>
         <NavLink to="/chat">Chat{directUnread > 0 && <span className="badge" aria-label={`${directUnread} nepročitanih poruka`}>{directUnread}</span>}</NavLink>

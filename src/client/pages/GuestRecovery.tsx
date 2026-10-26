@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../api";
+import { Brand } from "../visual/Brand";
 
 function RecoverySecret({ value }: { value: string }) {
   const [show, setShow] = useState(false);
@@ -52,7 +53,7 @@ export function RecoverGuest() {
     } catch (e) { setError(e instanceof Error ? e.message : "Oporavak nije uspio."); }
     finally { setBusy(false); }
   };
-  return <div className="shell"><header className="topbar"><Link to="/" className="wordmark">LIMEN<small>mjesto gdje priče žive</small></Link><Link to="/prijava">Prijava</Link></header>
+  return <div className="shell"><header className="topbar"><Brand /><Link to="/prijava">Prijava</Link></header>
     <main className="page"><h1>Oporavi razgovor</h1>
       <p className="lead">Potreban je tajni ključ koji si ranije sačuvao/la u odobrenom razgovoru. QR kod, nadimak ili ID razgovora ne mogu ga zamijeniti.</p>
       <p className="notice">Oporavak prekida pristup ovog gostujućeg identiteta u starim preglednicima. Ne daje pristup privatnoj sobi i ne produžava rok od 30 dana.</p>

@@ -14,6 +14,7 @@ import { GuestQr, GuestConversation, GuestConversations, OwnerGuestConversation 
 import { Scanner } from "./pages/Scanner";
 import { RecoverGuest } from "./pages/GuestRecovery";
 import "./styles.css";
+import { applyVisualSettings } from "./visual/applyVisualSettings";
 
 function Protected({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -56,4 +57,5 @@ function App() {
   );
 }
 
+applyVisualSettings();
 createRoot(document.getElementById("root")!).render(<React.StrictMode><App /></React.StrictMode>);

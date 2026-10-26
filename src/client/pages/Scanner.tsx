@@ -4,6 +4,7 @@ import { DecodeHintType } from "@zxing/library";
 import jsQR from "jsqr";
 import { Link, useNavigate } from "react-router-dom";
 import { cameraErrorMessage, limenQrCode } from "../lib/qr";
+import { Brand } from "../visual/Brand";
 
 export function Scanner() {
   const navigate = useNavigate();
@@ -112,7 +113,7 @@ export function Scanner() {
     document.addEventListener("visibilitychange", hide);
     return () => { document.removeEventListener("visibilitychange", hide); release(); };
   }, [release, stop]);
-  return <div className="shell"><header className="topbar"><Link to="/" className="wordmark">LIMEN<small>mjesto gdje priče žive</small></Link><Link to="/prijava">Prijava</Link></header>
+  return <div className="shell"><header className="topbar"><Brand /><Link to="/prijava">Prijava</Link></header>
     <main className="page"><p className="visitor-kicker">ULAZ BEZ PROFILA</p><h1>Skeniraj LIMEN QR kod</h1>
       <p className="lead">Skeniranje samo otvara zahtjev. Vlasnik odlučuje ko može započeti razgovor.</p>
       <section className="scanner-frame"><video ref={video} muted playsInline autoPlay aria-label="Prikaz kamere za skeniranje" />{!running && <div className="scanner-placeholder">Kamera će se pokrenuti tek kada je uključiš.</div>}</section>

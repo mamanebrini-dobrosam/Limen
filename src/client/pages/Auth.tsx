@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { api, ApiError, type User } from "../api";
 import { useAuth } from "../shell";
+import { Brand } from "../visual/Brand";
 
 function safeReturn(value: string | null | undefined) {
   return value && value.startsWith("/") && !value.startsWith("//") && !/[\\\u0000-\u0020]/.test(value) ? value : "/";
@@ -19,7 +20,7 @@ function returnPath(params: URLSearchParams) {
 function AuthFrame({ title, lead, children }: { title: string; lead?: string; children: React.ReactNode }) {
   return (
     <div className="shell">
-      <header className="topbar"><Link to="/" className="wordmark">LIMEN<small>mjesto gdje priče žive</small></Link></header>
+      <header className="topbar"><Brand /></header>
       <main className="page">
         <h1>{title}</h1>
         {lead && <p className="lead">{lead}</p>}

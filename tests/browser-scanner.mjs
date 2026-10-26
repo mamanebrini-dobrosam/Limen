@@ -2,8 +2,8 @@
 import assert from "node:assert/strict";
 import { chromium, devices } from "playwright-core";
 import QRCode from "qrcode";
+import { browserBase as base } from "./browser-target.mjs";
 
-const base = process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : "http://127.0.0.1:5000";
 const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || "/repl/tools/bin/chromium", args: ["--no-sandbox"] });
 try {
   for (const device of ["Pixel 7", "iPhone 13"]) {

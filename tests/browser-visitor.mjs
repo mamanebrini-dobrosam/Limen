@@ -5,9 +5,9 @@ import fs from "node:fs/promises";
 import { chromium } from "playwright-core";
 import QRCode from "qrcode";
 import pg from "pg";
+import { browserBase as base } from "./browser-target.mjs";
 
-const base = process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : "http://127.0.0.1:5000";
-const fixturePath = "/tmp/limen-visitor-browser-fixtures.json";
+const fixturePath = process.env.LIMEN_BROWSER_BASE_URL ? "/tmp/limen-visitor-isolated-fixtures.json" : "/tmp/limen-visitor-browser-fixtures.json";
 const password = "Browser-Limen-123!";
 const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || "/repl/tools/bin/chromium", args: ["--no-sandbox"] });
 const ownerContext = await browser.newContext({ baseURL: base, viewport: { width: 1280, height: 900 } });

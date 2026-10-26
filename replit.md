@@ -142,6 +142,10 @@ The hook is non-interactive and refuses to run with `NODE_ENV=production`.
 
 - Set `APP_URL` to the confirmed published URL and configure real SMTP delivery
   (`SMTP_URL`, `MAIL_FROM`).
+- Alternatively use the prepared split SMTP fields (`SMTP_HOST`, `SMTP_PORT`,
+  `SMTP_USER`, `SMTP_PASSWORD`) instead of `SMTP_URL`. Never use both forms.
+  See [SMTP setup](docs/email-setup.md) for the Brevo Free option and secure
+  configuration instructions; no provider account/subscription was activated.
 - Production photos use Replit App Storage. Development and tests use local
   `storage/`. Before the first production release with App Storage, run
   `npm run media:migrate-to-object-storage` where the existing `STORAGE_DIR`,
@@ -152,3 +156,24 @@ The hook is non-interactive and refuses to run with `NODE_ENV=production`.
   development database schema to the managed production database.
 - Production keeps anti-framing protection; only development permits Replit's
   preview frame.
+
+## Central presentation settings and final preparation
+
+- Presentation defaults live in `src/client/visual/settings.ts`. They retain the
+  existing wordmark, favicon, palette, Inter typography and layout. See
+  [visual settings](docs/visual-settings.md) for future logo/icon, palette,
+  button/navigation, home and mobile/desktop changes. These settings cannot
+  change authentication, guest approval, message limits, retention or token values.
+- `npm run email:check` reports readiness without displaying values or sending
+  email. Optional `-- --connect` checks only SMTP TLS/authentication; actual
+  inbox delivery must be tested separately after owner-supplied credentials.
+- `npm run test:browser` runs scanner and full visitor/room checks against a
+  disposable `_test` database and loopback server, not existing user data.
+  It preserves rate limits and disables external SMTP for test fixtures.
+  Do not run concurrently with the unit suite using the same test database.
+- Follow [real-device instructions](docs/mobile-testing.md) for Android Chrome
+  and iPhone Safari. Chromium mobile simulations are not physical camera or
+  Safari/WebKit certification.
+- A Git code checkpoint tag named `limen-before-technical-prep-*` was created
+  before this preparation. It is a code checkpoint, not a database backup.
+  Do not delete user data or publish publicly without explicit owner approval.

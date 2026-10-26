@@ -30,8 +30,8 @@ Ovo je **Faza 1 MVP**: registracija (18+), QR kontakti, pozivi, soba sa šest mj
 
 ### Šta je pojednostavljeno ili simulirano
 
-- **Email:** bez `SMTP_URL` emailovi se ne šalju, nego se ispisuju u log servera. U razvoju se vide i na `/api/dev/outbox` (u produkciji isključeno).
-- **Skeniranje QR-a:** QR sadrži link `.../c/<kod>`. Otvara se kamerom telefona; u aplikaciji se kod može i upisati. Nema ugrađenog skenera.
+- **Email:** podržani su odvojena SMTP polja ili postojeći `SMTP_URL`. Bez SMTP-a razvoj koristi `/api/dev/outbox`, bez ispisa linkova u log. Produkcija bez potpune konfiguracije odbija slanje i nema razvojni sandučić. Upute su u [SMTP pripremi](docs/email-setup.md).
+- **Skeniranje QR-a:** ugrađeni skener podržava kameru, QR sliku i unos LIMEN linka/koda. Mobilne simulacije ne zamjenjuju fizičku provjeru Androida/iPhonea; slijedi [upute za uređaje](docs/mobile-testing.md).
 - **Provjera godina:** unos datuma rođenja i potvrda. Nema provjere dokumenta.
 - **Pohrana fotografija:** Replit App Storage u produkciji; lokalni disk (`storage/`) samo u razvoju i testovima. Prije prve produkcijske objave koja koristi App Storage, prenesi postojeće fotografije komandom `npm run media:migrate-to-object-storage` u okruženju koje ima pristup postojećem `STORAGE_DIR` i Replit App Storage.
 - **Više server instanci:** rokovi i limiti su u bazi, ali websocket događaji idu kroz jedan proces. Za više instanci treba Socket.IO Redis adapter.
@@ -54,11 +54,18 @@ Poker, šah, Čovječe ne ljuti se, sinhronizovani video/YouTube i prikaz fotogr
 1. Na replit.com: **Create → Import from GitHub** → izaberi `mamanebrini-dobrosam/limen`.
 2. U lijevom meniju otvori **Database (PostgreSQL)** i napravi bazu. Replit sam postavlja `DATABASE_URL`.
 3. U **Secrets** dodaj:
-   - `APP_URL` = adresa tvoje aplikacije (npr. `https://limen.tvojnalog.replit.app`)
+   - `APP_URL` = stvarna potvrđena adresa u odgovarajućem okruženju; razvoj bez ove postavke koristi razvojnu adresu. Ne nagađaj buduću javnu adresu.
    - `ADMIN_EMAILS` = tvoj email
-   - po želji `SMTP_URL` i `MAIL_FROM` (bez toga link za potvrdu emaila nađeš u logu: **Console/Logs**)
+   - za stvarnu email dostavu `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `MAIL_FROM` prema [sigurnim uputama](docs/email-setup.md), ili samo prethodni `SMTP_URL` i `MAIL_FROM`. Nikad ne unosi ključeve u chat/kod.
 4. Klikni **Run**. Aplikacija se pravi i pokreće na portu 5000; migracije baze se primjenjuju same.
-5. Za objavu: **Deploy → Reserved VM** (ne Autoscale), jer pravilo od 30 sekundi i websocket traže stalno upaljen server.
+5. Javna objava zahtijeva izričito odobrenje vlasnika i završene provjere stvarnih uređaja, emaila i produkcijske pohrane. Ova priprema ne objavljuje aplikaciju niti aktivira plaćene usluge.
+
+### Tehnička i vizuelna priprema
+
+- [Centralne vizuelne postavke bez promjene trenutnog izgleda](docs/visual-settings.md)
+- `npm run email:check` — provjera postavki bez slanja poruke ili ispisa vrijednosti.
+- `npm run test:browser` — odvojena testna baza i sintetički identiteti, bez promjene korisničke baze.
+- Prije značajnih izmjena sačuvaj checkpoint koda. Ne briši postojeće korisničke podatke, ne mijenjaj sigurnosna pravila ili ekonomiju tokena u sklopu vizuelne pripreme i ne uključuj plaćene usluge bez odobrenja vlasnika.
 
 ## Lokalno pokretanje
 

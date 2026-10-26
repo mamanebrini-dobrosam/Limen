@@ -4,7 +4,8 @@ import type { Server } from "socket.io";
 import { config } from "../config.js";
 import { db, schema } from "../db/client.js";
 import { HttpError } from "./core.js";
-import { productionMailErrors } from "./mail-settings.js";
+import { mailConfigurationErrors } from "./mail-settings.js";
+import { smtpSettings } from "./smtp-settings.js";
 
 // ---------- Rate limiting (fiksni prozor, atomski brojač u PostgreSQL-u) ----------
 export async function rateLimit(bucket: keyof typeof config.limits | string, subject: string) {
@@ -31,10 +32,11 @@ export async function cleanupRateLimits() {
 }
 
 // ---------- Email ----------
-const transport = config.smtpUrl ? nodemailer.createTransport(config.smtpUrl) : null;
+const smtp = smtpSettings(config);
+const transport = smtp.options ? nodemailer.createTransport(smtp.options) : null;
 
 export function ensureMailAvailable() {
-  if (productionMailErrors(config).length) {
+  if (mailConfigurationErrors(config).length) {
     throw new HttpError(503, "email_unavailable", "Slanje emaila trenutno nije dostupno. Pokušaj kasnije.");
   }
 }

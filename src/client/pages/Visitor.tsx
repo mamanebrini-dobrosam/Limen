@@ -4,6 +4,7 @@ import { api, ApiError } from "../api";
 import { Shell, useAuth } from "../shell";
 import { ConnectByQr } from "./Contacts";
 import { RecoveryTools } from "./GuestRecovery";
+import { Brand } from "../visual/Brand";
 
 type GuestMessage = { id: number; chatId: string; sender: "owner" | "guest"; body: string; createdAt: string };
 type GuestChat = {
@@ -45,7 +46,7 @@ export function GuestQr() {
       setChat(r.chat); nav(`/gost/${encodeURIComponent(r.chat.id)}`, { replace: true });
     } catch (e2) { setError(friendlyError(e2)); } finally { setBusy(false); }
   };
-  return <div className="shell"><header className="topbar"><Link to="/" className="wordmark">LIMEN<small>mjesto gdje priče žive</small></Link><Link to="/prijava">Prijava</Link></header>
+  return <div className="shell"><header className="topbar"><Brand /><Link to="/prijava">Prijava</Link></header>
     <main className="page"><p className="visitor-kicker">LIČNI POZIV</p><h1>{loading ? "Provjeravam QR kod…" : owner ? `Razgovor s ${owner.displayName}` : "QR kod nije dostupan"}</h1>
       {error && <p className="notice error" role="alert">{error}</p>}
       {chat && <p className={`notice ${chat.status === "rejected" ? "" : "ok"}`}>{chat.status === "pending" ? "Zahtjev je poslan. Čeka se odluka vlasnika." : chat.status === "approved" ? "Zahtjev je odobren. Razgovor je spreman." : "Ovaj zahtjev nije odobren."}</p>}
@@ -72,7 +73,7 @@ export function GuestConversations() {
     document.addEventListener("visibilitychange", refresh);
     return () => { window.clearInterval(timer); document.removeEventListener("visibilitychange", refresh); };
   }, [load]);
-  return <div className="shell"><header className="topbar"><Link to="/" className="wordmark">LIMEN<small>mjesto gdje priče žive</small></Link><Link to="/prijava">Prijava</Link></header>
+  return <div className="shell"><header className="topbar"><Brand /><Link to="/prijava">Prijava</Link></header>
     <main className="page"><p className="visitor-kicker">GOSTUJUĆI PRISTUP</p><h1>Moji razgovori</h1><p className="lead">Otvori ih u istom pregledniku ili ih oporavi pomoću unaprijed sačuvanog tajnog ključa.</p>
       <p><Link to="/gost-oporavak">Oporavi razgovor tajnim ključem</Link></p>
       {error && <p className="notice error">{error} <button className="btn small ghost" onClick={load}>Pokušaj ponovo</button></p>}
@@ -202,7 +203,7 @@ function VisitorThread({ id, ownerMode = false }: { id: string; ownerMode?: bool
   const locked = !ownerMode && remaining === 0;
 
   return <div className={ownerMode ? "" : "shell"}>
-    {!ownerMode && <header className="topbar"><Link to="/" className="wordmark">LIMEN<small>mjesto gdje priče žive</small></Link><Link to="/prijava">Prijava</Link></header>}
+    {!ownerMode && <header className="topbar"><Brand /><Link to="/prijava">Prijava</Link></header>}
     <div className={ownerMode ? "visitor-chat-page" : "page visitor-chat-page"}>
       <p><Link to={ownerMode ? "/chat" : "/gost-razgovori"}>← {ownerMode ? "Razgovori" : "Moji razgovori"}</Link></p>
       <p className="visitor-kicker">{ownerMode ? "ZAHTJEV GOSTA" : "PRIVATNI RAZGOVOR"}</p>

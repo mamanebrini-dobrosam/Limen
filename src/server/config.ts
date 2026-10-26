@@ -29,6 +29,10 @@ export const config = {
   mediaStorageBackend,
   adminEmails: (env.ADMIN_EMAILS ?? "").split(",").map((s) => s.trim().toLowerCase()).filter(Boolean),
   smtpUrl: env.SMTP_URL ?? "",
+  smtpHost: env.SMTP_HOST ?? "",
+  smtpPort: env.SMTP_PORT ? int("SMTP_PORT", 587) : undefined,
+  smtpUser: env.SMTP_USER ?? "",
+  smtpPassword: env.SMTP_PASSWORD ?? "",
   mailFrom: env.MAIL_FROM ?? "LIMEN <no-reply@limen.local>",
 
   sessionTtlDays: int("SESSION_TTL_DAYS", 30),
