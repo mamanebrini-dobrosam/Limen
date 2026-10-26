@@ -9,3 +9,5 @@
 }
 .profile-editor-actions .btn { font-size: 14px; }
 .profile-editor-fields { border: 0; padding: 0; margin: 0; min-width: 0; }
+.profile-current-color { max-width: 250px; margin-bottom: 12px; }
+.profile-current-color .palette-choice-image { border-radius: 8px; }

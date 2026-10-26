@@ -87,7 +87,7 @@ describe("LIMEN visual settings", () => {
     expect((markup.match(/class="palette-review-card"/g) ?? [])).toHaveLength(ROOM_PALETTES.length);
     const editorMarkup = renderToStaticMarkup(createElement(MemoryRouter, null, createElement(RoomEditor)));
     const editorImages = [...editorMarkup.matchAll(/<img[^>]+src="([^"]+)"/g)].map((match) => match[1]);
-    expect(editorImages).toHaveLength(ROOM_PALETTES.length + 1);
+    expect(editorImages).toHaveLength(2); // Brand + current swatch; remaining colors start hidden.
     expect(new Set(editorImages)).toEqual(new Set([visualSettings.brand.logoImage]));
   });
 

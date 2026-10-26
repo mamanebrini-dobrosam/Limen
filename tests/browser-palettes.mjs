@@ -6,8 +6,11 @@ export async function verifyRoomPalettes({ ownerContext, guestContext, roomPage,
   const editor = await ownerContext.newPage();
   await editor.goto(`${base}/moja-soba`);
   await editor.getByRole("heading", { name: "Izgled sobe", exact: true }).waitFor();
+  await editor.waitForFunction(() => !document.querySelector(".profile-editor-fields")?.disabled);
+  assert.equal(await editor.locator(".palette-picker").count(), 0, "Palette starts closed");
+  await editor.getByRole("button", { name: "Promijeni boju", exact: true }).click();
   const officialLogo = "/brand/palette/slonovaca.png";
-  const previewLogos = await editor.locator(".palette-choice-image img").evaluateAll((images) =>
+  const previewLogos = await editor.locator(".palette-picker .palette-choice-image img").evaluateAll((images) =>
     images.map((img) => ({
       path: new URL(img.src).pathname,
       filter: getComputedStyle(img).filter,
@@ -21,6 +24,7 @@ export async function verifyRoomPalettes({ ownerContext, guestContext, roomPage,
     assert.equal(logo.opacity, "1");
     assert.equal(logo.blend, "normal");
   }
+  await editor.getByRole("button", { name: "Zatvori paletu", exact: true }).click();
   assert.equal(await guestPage.getByRole("link", { name: "Uredi sobu", exact: true }).count(), 0);
   const mine = await api(ownerContext, "GET", "/rooms/mine");
   const guestBefore = (await api(guestContext, "GET", "/rooms/mine")).room.theme;
@@ -36,14 +40,19 @@ export async function verifyRoomPalettes({ ownerContext, guestContext, roomPage,
   const rgb = (hex) => `rgb(${hex.slice(1).match(/.{2}/g).map((n) => parseInt(n, 16)).join(", ")})`;
   try {
     for (const p of ROOM_PALETTES) {
+      const previousTheme = (await api(ownerContext, "GET", "/rooms/mine")).room.theme;
+      await editor.getByRole("button", { name: "Promijeni boju", exact: true }).click();
       const option = editor.getByRole("button", { name: new RegExp(p.label) });
       await option.click();
+      assert.equal((await api(ownerContext, "GET", "/rooms/mine")).room.theme, previousTheme, "Choosing a color never autosaves");
+      assert.equal(await editor.locator(".palette-picker").count(), 0, "Choice closes the palette");
+      await editor.getByRole("button", { name: "Sačuvaj i izađi", exact: true }).click();
+      await editor.waitForURL((url) => url.pathname === `/sto/${mine.openSessionId}`);
       await until(async () => (await api(ownerContext, "GET", "/rooms/mine")).room.theme === p.id, `Saved ${p.id}`);
-      await until(async () => await option.getAttribute("aria-pressed") === "true", `Selected ${p.id}`);
       // Reload the editor to test actual persisted selection, not local state.
-      await editor.reload();
-      await editor.getByRole("button", { name: new RegExp(p.label) }).waitFor();
-      await until(async () => await editor.getByRole("button", { name: new RegExp(p.label) }).getAttribute("aria-pressed") === "true", `Reloaded saved ${p.id}`);
+      await editor.goto(`${base}/moja-soba`);
+      await editor.getByLabel("Trenutno odabrana boja", { exact: true }).getByText(p.label, { exact: true }).waitFor();
+      await editor.waitForFunction(() => !document.querySelector(".profile-editor-fields")?.disabled);
       await roomPage.reload();
       await roomPage.locator(`.room[data-theme="${p.id}"]`).waitFor();
       const actual = await roomPage.locator(".room").evaluate((el) => ({
@@ -67,14 +76,15 @@ export async function verifyRoomPalettes({ ownerContext, guestContext, roomPage,
       });
       return route.continue();
     });
+    await editor.getByRole("button", { name: "Promijeni boju", exact: true }).click();
     await editor.getByRole("button", { name: /Duboki smaragd/ }).click();
-    await editor.getByRole("alert").getByText("Probna greška čuvanja izgleda.", { exact: true }).waitFor();
-    assert.equal(await editor.getByRole("button", { name: /Zeleni obsidijan/ }).getAttribute("aria-pressed"), "true");
+    await editor.getByRole("button", { name: "Sačuvaj i izađi", exact: true }).click();
+    await editor.getByRole("alert").filter({ hasText: "Probna greška čuvanja izgleda." }).waitFor();
     assert.equal((await api(ownerContext, "GET", "/rooms/mine")).room.theme, "obsidijan");
     await editor.unroute("**/api/rooms/mine");
     await editor.setViewportSize({ width: 390, height: 844 });
     await editor.reload();
-    await editor.getByRole("button", { name: /Ametist/ }).waitFor();
+    await editor.getByLabel("Trenutno odabrana boja", { exact: true }).getByText("Zeleni obsidijan", { exact: true }).waitFor();
     assert.equal(await overflow(editor), false, "Mobile owner settings overflow");
     await roomPage.setViewportSize({ width: 390, height: 844 });
     await roomPage.reload();
@@ -96,7 +106,7 @@ export async function verifyRoomPalettes({ ownerContext, guestContext, roomPage,
     await roomPage.screenshot({ path: `${dir}/room-mobile.jpg`, fullPage: true, type: "jpeg", quality: 80 });
     await editor.setViewportSize({ width: 1280, height: 900 });
     await editor.reload();
-    await editor.getByRole("button", { name: /Ametist/ }).waitFor();
+    await editor.getByLabel("Trenutno odabrana boja", { exact: true }).getByText("Zeleni obsidijan", { exact: true }).waitFor();
     await editor.screenshot({ path: `${dir}/owner-settings-desktop.jpg`, fullPage: true, type: "jpeg", quality: 80 });
     await editor.goto(base);
     await editor.getByRole("heading", { name: /Dobro/ }).first().waitFor();

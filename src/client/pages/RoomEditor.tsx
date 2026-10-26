@@ -1,204 +1,162 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { api, type RoomSection } from "../api";
 import { Shell } from "../shell";
 import { ROOM_PALETTES, paletteBackground, roomPalette } from "../../shared/room-palettes";
 import { visualSettings } from "../visual/settings";
+import { copyDraft, draftId, persistRoomDraft, type EditorDraft, type EditorItem } from "../lib/room-editor-draft";
+import { ProfileSectionEditor, type TextDraft } from "./ProfileSectionEditor";
 import "./RoomEditor.css";
-
-type SectionDraft = { text: string; kind: "text" | "quote" };
 
 export function RoomEditor() {
   const navigate = useNavigate();
-  const [sections, setSections] = useState<RoomSection[]>([]);
-  const [theme, setTheme] = useState("orah");
+  const [draft, setDraft] = useState<EditorDraft>({ sections: [], theme: "orah" });
+  const saved = useRef<EditorDraft>(copyDraft(draft));
   const [openSession, setOpenSession] = useState<string | null>(null);
+  const [inputs, setInputs] = useState<Record<string, TextDraft>>({});
   const [newTitle, setNewTitle] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [themeSaving, setThemeSaving] = useState(false);
-  const [themeStatus, setThemeStatus] = useState<string | null>(null);
-  const themeSaveLock = useRef(false);
-  const [drafts, setDrafts] = useState<Record<string, SectionDraft>>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [paletteOpen, setPaletteOpen] = useState(false);
   const saveLock = useRef(false);
   const mounted = useRef(true);
+  const previews = useRef(new Set<string>());
   const exitTo = openSession ? `/sto/${openSession}` : "/";
+
   useEffect(() => {
     mounted.current = true;
-    return () => { mounted.current = false; };
-  }, []);
-
-  const load = useCallback(async () => {
-    const [c, r] = await Promise.all([
+    Promise.all([
       api.get<{ sections: RoomSection[]; theme: string }>("/room/content"),
       api.get<{ openSessionId: string | null }>("/rooms/mine"),
-    ]);
-    setSections(c.sections); setTheme(c.theme); setOpenSession(r.openSessionId);
+    ]).then(([content, room]) => {
+      if (!mounted.current) return;
+      saved.current = copyDraft(content);
+      setDraft(copyDraft(content));
+      setOpenSession(room.openSessionId);
+    }).catch((e) => { if (mounted.current) setError(e.message); })
+      .finally(() => { if (mounted.current) setLoading(false); });
+    const urls = previews.current;
+    return () => {
+      mounted.current = false;
+      urls.forEach((url) => URL.revokeObjectURL(url));
+      urls.clear();
+    };
   }, []);
-  useEffect(() => {
-    load().catch((e) => setError(e.message)).finally(() => setLoading(false));
-  }, [load]);
-  const act = (fn: () => Promise<unknown>) => {
-    if (saveLock.current) return;
-    saveLock.current = true;
-    setSaving(true);
-    setError(null);
-    fn().then(load).catch((e) => setError(e.message)).finally(() => {
-      saveLock.current = false;
-      setSaving(false);
-    });
+
+  const textDraft = (id: string, kind: string): TextDraft => inputs[id] ?? { text: "", kind: kind === "vision" ? "quote" : "text" };
+  const addItem = (sectionId: string, item: EditorItem) => setDraft((d) => ({
+    ...d, sections: d.sections.map((s) => s.id === sectionId ? { ...s, items: [...s.items, item] } : s),
+  }));
+  const stageText = (id: string, kind: string) => {
+    const value = textDraft(id, kind);
+    if (!value.text.trim()) return;
+    addItem(id, { id: draftId(), kind: value.kind, text: value.text.trim(), mediaId: null, sharedWithGuests: false });
+    setInputs((current) => ({ ...current, [id]: { ...value, text: "" } }));
+  };
+  const stageSection = () => {
+    if (!newTitle.trim()) return;
+    setDraft((d) => ({ ...d, sections: [...d.sections, { id: draftId(), kind: "custom", title: newTitle.trim(), items: [] }] }));
+    setNewTitle("");
+  };
+  const stageImage = (id: string, file: File) => {
+    const previewUrl = URL.createObjectURL(file);
+    previews.current.add(previewUrl);
+    addItem(id, { id: draftId(), kind: "image", text: null, mediaId: null, sharedWithGuests: false, file, previewUrl });
   };
   const saveAndExit = async () => {
-    if (saveLock.current || themeSaveLock.current || loading) return;
+    if (saveLock.current || loading) return;
     saveLock.current = true;
     setSaving(true);
     setError(null);
+    const work = copyDraft(draft);
+    // Also include text still in inputs, without requiring a separate "Dodaj".
+    for (const section of work.sections) {
+      const value = textDraft(section.id, section.kind);
+      if (value.text.trim()) section.items.push({
+        id: draftId(), kind: value.kind, text: value.text.trim(), mediaId: null, sharedWithGuests: false,
+      });
+    }
+    if (newTitle.trim()) work.sections.push({ id: draftId(), kind: "custom", title: newTitle.trim(), items: [] });
+    setDraft(work);
+    setInputs({});
+    setNewTitle("");
+    let confirmed = 0;
     try {
-      for (const sec of sections) {
-        if (!mounted.current) return;
-        const draft = drafts[sec.id];
-        if (!draft?.text.trim()) continue;
-        await api.post("/room/items", { sectionId: sec.id, kind: draft.kind, text: draft.text });
-        setDrafts((current) => ({ ...current, [sec.id]: { ...draft, text: "" } }));
-      }
-      if (!mounted.current) return;
-      if (newTitle.trim()) {
-        await api.post("/room/sections", { title: newTitle });
-        setNewTitle("");
-      }
+      await persistRoomDraft(saved.current, work, (baseline, remaining) => {
+        confirmed++;
+        saved.current = baseline;
+        if (mounted.current) setDraft(remaining);
+      }, () => mounted.current);
       if (mounted.current) navigate(exitTo);
     } catch (e) {
-      setError((e as Error).message || "Promjene nisu sačuvane. Pokušaj ponovo.");
+      if (mounted.current) setError(`${confirmed ? "Dio potvrđenih izmjena je sačuvan. Preostale izmjene ostaju ovdje za ponovni pokušaj. " : "Izmjene nisu sačuvane. "}${(e as Error).message}`);
     } finally {
       saveLock.current = false;
-      setSaving(false);
+      if (mounted.current) setSaving(false);
     }
   };
-  const saveTheme = async (id: string) => {
-    if (themeSaveLock.current || id === theme) return;
-    themeSaveLock.current = true;
-    setThemeSaving(true);
-    setThemeStatus("Čuvanje izgleda…");
-    setError(null);
-    try {
-      await api.patch("/rooms/mine", { theme: id });
-      setTheme(id);
-      setThemeStatus("Izgled sobe je sačuvan.");
-    } catch (e) {
-      setThemeStatus(null);
-      setError((e as Error).message || "Izgled nije sačuvan. Pokušaj ponovo.");
-    } finally {
-      themeSaveLock.current = false;
-      setThemeSaving(false);
-    }
+  const palette = roomPalette(draft.theme);
+  const legacyBackground: Record<string, string> = {
+    orah: "var(--orah)", kadulja: "var(--kadulja)", noc: "var(--noc)", krem: "var(--krem)",
   };
-  const selectedPalette = roomPalette(theme);
-
   return (
     <Shell wide>
       <div className="row profile-editor-actions" role="group" aria-label="Uređivanje profila">
-        <Link className="btn ghost" to={exitTo}>Nazad</Link>
-        <button className="btn" type="button" disabled={loading || saving || themeSaving} onClick={saveAndExit}>
-          {saving ? "Čuvanje…" : "Sačuvaj promjene"}
+        <Link className="btn ghost" to={exitTo}>Izađi</Link>
+        <button className="btn" type="button" disabled={loading || saving} onClick={saveAndExit}>
+          {saving ? "Čuvanje…" : "Sačuvaj i izađi"}
         </button>
         <Link className="btn ghost" to={exitTo}>Odustani</Link>
       </div>
       <h1>Moja soba</h1>
-      <p className="lead">Samo ti uređuješ sobu. Gosti vide isključivo ono što označiš kao vidljivo gostima, i svi vide isto. Sve ostalo ostaje u tvom privatnom ormaru.</p>
-      {openSession && <p><Link className="btn warm" to={`/sto/${openSession}`}>Nazad za sto</Link></p>}
+      <p className="lead">Samo ti uređuješ sobu. Gosti vide isključivo ono što označiš kao vidljivo gostima. Sve ostalo ostaje u tvom privatnom ormaru.</p>
+      <p className="meta">Sve izmjene su privremene do „Sačuvaj i izađi“. „Izađi“ i „Odustani“ odbacuju nesačuvane izmjene, uključujući boju, vidljivost, dodavanje i brisanje.</p>
       {error && <p className="notice error" role="alert">{error}</p>}
-      <p className="meta">„Sačuvaj promjene“ čuva unesene tekstove i novu cjelinu. „Nazad“ i „Odustani“ odbacuju samo nesačuvane unose. Izbor pozadine, „Dodaj“, brisanje i vidljivost gostima čuvaju se odmah.</p>
-
-      <fieldset className="profile-editor-fields" disabled={loading || saving || themeSaving}>
-      <div className="palette-heading">
-        <div>
-          <h2>Izgled sobe</h2>
-          <p className="lead">Odaberi jednu od dvanaest boja iz originalne LIMEN palete.</p>
+      <fieldset className="profile-editor-fields" disabled={loading || saving}>
+        <h2>Izgled sobe</h2>
+        <div className="profile-current-color" aria-label="Trenutno odabrana boja">
+          <div className="palette-choice-image" style={{ background: palette ? paletteBackground(palette) : legacyBackground[draft.theme] }}>
+            <img src={visualSettings.brand.logoImage!} alt="" />
+          </div>
+          <p>{palette?.label ?? `Postojeći izgled: ${draft.theme}`}{draft.theme !== saved.current.theme && <span> — nesačuvani izbor</span>}</p>
         </div>
-        <Link className="btn small ghost" to="/paleta">Pregled svih boja</Link>
-      </div>
-      {themeStatus && <p className="palette-save-status" role="status" aria-live="polite">{themeStatus}</p>}
-      {theme && !selectedPalette && <p className="notice palette-legacy" role="status">Trenutni izgled „{theme}“ je zadržan. Možeš ga ostaviti ili odabrati novu paletu.</p>}
-      <div className="palette-picker" role="group" aria-label="Odaberi izgled sobe">
-        {ROOM_PALETTES.map((palette) => (
-          <button type="button" key={palette.id} className={`palette-choice${theme === palette.id ? " is-selected" : ""}`}
-            aria-pressed={theme === palette.id} disabled={themeSaving} onClick={() => saveTheme(palette.id)}>
-            <span className="palette-choice-image" style={{ background: paletteBackground(palette) }}>
-               <img src={visualSettings.brand.logoImage!} alt="" />
-              <span className="palette-choice-gradient" aria-hidden="true" />
-            </span>
-            <span className="palette-choice-meta">
-              <span className="palette-choice-label">{palette.label}</span>
-              <span className="palette-choice-source">Izvor {palette.row}:{palette.column}</span>
-              {theme === palette.id && <span className="palette-choice-current">Trenutni izbor</span>}
-            </span>
-          </button>
-        ))}
-      </div>
-
-      {sections.map((sec) => <SectionEditor key={sec.id} sec={sec} act={act}
-        draft={drafts[sec.id] ?? { text: "", kind: sec.kind === "vision" ? "quote" : "text" }}
-        onDraft={(draft) => setDrafts((current) => ({ ...current, [sec.id]: draft }))} />)}
-
-      <h2>Nova cjelina</h2>
-      <form className="row" onSubmit={(e) => { e.preventDefault(); if (newTitle.trim()) act(async () => { await api.post("/room/sections", { title: newTitle }); setNewTitle(""); }); }}>
-        <input className="input" style={{ flex: 1, minWidth: 180 }} placeholder="npr. Putovanja" value={newTitle} onChange={(e) => setNewTitle(e.target.value)} maxLength={40} aria-label="Naziv nove cjeline" />
-        <button className="btn">Dodaj cjelinu</button>
-      </form>
+        <button className="btn ghost" type="button" aria-expanded={paletteOpen} aria-controls="room-color-picker" onClick={() => setPaletteOpen(!paletteOpen)}>Promijeni boju</button>
+        {paletteOpen && <div id="room-color-picker">
+          <div className="row">
+            <h3>Odaberi boju</h3>
+            <button className="btn small ghost" type="button" onClick={() => setPaletteOpen(false)}>Zatvori paletu</button>
+          </div>
+          <div className="palette-picker" role="group" aria-label="Odaberi izgled sobe">
+            {ROOM_PALETTES.map((p) => <button type="button" key={p.id}
+              className={`palette-choice${draft.theme === p.id ? " is-selected" : ""}`} aria-pressed={draft.theme === p.id}
+              onClick={() => { setDraft((d) => ({ ...d, theme: p.id })); setPaletteOpen(false); }}>
+              <span className="palette-choice-image" style={{ background: paletteBackground(p) }}>
+                <img src={visualSettings.brand.logoImage!} alt="" />
+              </span>
+              <span className="palette-choice-meta"><span className="palette-choice-label">{p.label}</span>
+                <span className="palette-choice-source">Izvor {p.row}:{p.column}</span></span>
+            </button>)}
+          </div>
+        </div>}
+        {draft.sections.map((section) => <ProfileSectionEditor key={section.id} section={section}
+          input={textDraft(section.id, section.kind)}
+          onInput={(value) => setInputs((current) => ({ ...current, [section.id]: value }))}
+          onAdd={() => stageText(section.id, section.kind)} onImage={(file) => stageImage(section.id, file)}
+          onDeleteSection={() => {
+            if (confirm(`Označiti cjelinu „${section.title}“ i njen sadržaj za brisanje? Brisanje se izvršava tek na „Sačuvaj i izađi“.`))
+              setDraft((d) => ({ ...d, sections: d.sections.filter((s) => s.id !== section.id) }));
+          }}
+          onDeleteItem={(id) => setDraft((d) => ({ ...d, sections: d.sections.map((s) => s.id === section.id ? { ...s, items: s.items.filter((i) => i.id !== id) } : s) }))}
+          onVisibility={(id, value) => setDraft((d) => ({ ...d, sections: d.sections.map((s) => s.id === section.id ? { ...s, items: s.items.map((i) => i.id === id ? { ...i, sharedWithGuests: value } : i) } : s) }))}
+        />)}
+        <h2>Nova cjelina</h2>
+        <form className="row" onSubmit={(e) => { e.preventDefault(); stageSection(); }}>
+          <input className="input" style={{ flex: 1, minWidth: 180 }} placeholder="npr. Putovanja" value={newTitle}
+            onChange={(e) => setNewTitle(e.target.value)} maxLength={40} aria-label="Naziv nove cjeline" />
+          <button className="btn" type="submit">Dodaj cjelinu</button>
+        </form>
       </fieldset>
     </Shell>
-  );
-}
-
-function ShareToggle({ id, initial, act }: { id: string; initial: boolean; act: (fn: () => Promise<unknown>) => void }) {
-  const [on, setOn] = useState(initial);
-  useEffect(() => { setOn(initial); }, [initial]);
-  return (
-    <label className="toggle">
-      <input type="checkbox" checked={on} onChange={(e) => { const v = e.target.checked; setOn(v); act(() => api.patch(`/room/items/${id}`, { sharedWithGuests: v })); }} />
-      Vidljivo gostima
-    </label>
-  );
-}
-
-function SectionEditor({ sec, act, draft, onDraft }: {
-  sec: RoomSection; act: (fn: () => Promise<unknown>) => void;
-  draft: SectionDraft; onDraft: (draft: SectionDraft) => void;
-}) {
-  const { text, kind } = draft;
-  const setText = (text: string) => onDraft({ ...draft, text });
-  const setKind = (kind: SectionDraft["kind"]) => onDraft({ ...draft, kind });
-  const isGallery = sec.kind === "gallery";
-  return (
-    <section>
-      <h2 className="row" style={{ justifyContent: "space-between" }}>
-        <span>{sec.title}</span>
-        {sec.kind === "custom" && <button className="btn small danger" onClick={() => { if (confirm(`Obrisati cjelinu „${sec.title}“ i sav njen sadržaj?`)) act(() => api.del(`/room/sections/${sec.id}`)); }}>Obriši cjelinu</button>}
-      </h2>
-      {isGallery && <p className="lead" style={{ fontSize: 14 }}>Galerija je privatna. Gosti vide samo fotografije koje označiš.</p>}
-      {sec.items.length === 0 && <p className="empty">Još nema sadržaja.</p>}
-      {sec.items.map((i) => (
-        <div className="item-row" key={i.id}>
-          {i.kind === "image" && i.mediaId && <img src={`/api/media/${i.mediaId}`} alt="" />}
-          <div className="grow">{i.kind === "quote" ? `„${i.text}“` : i.text ?? (i.kind === "image" ? "Fotografija" : "")}</div>
-          <ShareToggle id={i.id} initial={!!i.sharedWithGuests} act={act} />
-          <button className="btn small ghost" onClick={() => act(() => api.del(`/room/items/${i.id}`))} aria-label="Obriši">Obriši</button>
-        </div>
-      ))}
-      <div className="row" style={{ marginTop: 10 }}>
-        <form className="row" style={{ flex: 1 }} onSubmit={(e) => { e.preventDefault(); if (text.trim()) act(async () => { await api.post("/room/items", { sectionId: sec.id, kind, text }); setText(""); }); }}>
-          <input className="input" style={{ flex: 1, minWidth: 160 }} placeholder={kind === "quote" ? "Citat" : "Tekst"} value={text} onChange={(e) => setText(e.target.value)} maxLength={2000} aria-label={`Novi sadržaj za ${sec.title}`} />
-          <select className="input" style={{ width: "auto" }} value={kind} onChange={(e) => setKind(e.target.value as "text" | "quote")} aria-label="Vrsta">
-            <option value="text">Tekst</option><option value="quote">Citat</option>
-          </select>
-          <button className="btn small">Dodaj</button>
-        </form>
-        <label className="btn small ghost" style={{ cursor: "pointer" }}>
-          Dodaj fotografiju
-          <input type="file" accept="image/jpeg,image/png,image/webp" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) act(() => api.upload("/room/items/image", f, { sectionId: sec.id })); e.target.value = ""; }} />
-        </label>
-      </div>
-    </section>
   );
 }

@@ -1,6 +1,6 @@
 ---
-name: Profile editor exit
-description: Exit and cancel policy for optional profile content versus existing immediate saves.
+name: Profile editor saving and exit
+description: Owner requires explicit confirmation of all profile/room drafts, with no autosave.
 ---
 
 Optional profile content must not trap a user in editing. Back and cancel
@@ -11,9 +11,20 @@ failed save. They must never delete previously saved content.
 explicitly required exit without filling every optional field, while keeping
 authentication and security requirements unchanged.
 
-**How to apply:** Provide a home fallback when there is no open conversation;
-do not rely solely on browser history. Preserve the established immediate
-saves for palette selection and explicit add/delete/visibility actions.
-Clearly distinguish these from unsaved text drafts. Making cancel undo
-already-persisted actions would be a separate behavior change requiring the
-owner's approval.
+The owner subsequently explicitly replaced immediate-save behavior:
+**Izađi / Odustani** discards all unsaved changes; **Sačuvaj i izađi**
+confirms permitted changes and closes editing. Color, background, visibility,
+other room settings, additions, photos and deletions must not persist before
+confirmation. Show only the currently selected color initially, with the
+twelve choices hidden behind **Promijeni boju**.
+
+**Why:** The owner requested one clear confirmation rule instead of mixing
+draft text with immediately persisted settings.
+
+**How to apply:** Keep all editor changes local until explicit save, including
+file selection. Leaving must not issue save requests. Preserve owner-only
+server authorization and an exit from every nested menu; use a home fallback
+without an open conversation rather than relying solely on browser history.
+If confirmed saving is interrupted after successful requests, clearly report
+partial success and preserve remaining draft operations without duplication;
+do not describe the existing multi-request save as atomic.

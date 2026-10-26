@@ -47,9 +47,17 @@ neprecrtani. Zlato je akcenat; primarne akcije ostaju čitljive.
 
 ## Vlasnik i gosti
 
-Na **Moja soba → Izgled sobe** vlasnik bira jednu od 12 opcija.
-Izbor se odmah čuva na postojećoj sobi; osvježavanje stranice ga ne briše.
-Ako čuvanje ne uspije, greška je prikazana, a prethodni izbor ostaje.
+Na **Moja soba → Izgled sobe** vidi se samo trenutno odabrana boja.
+**Promijeni boju** otvara 12 opcija; izbor mijenja samo privremeni nacrt.
+**Zatvori paletu** vraća u uređivač, bez trajnog čuvanja.
+Tek **Sačuvaj i izađi** potvrđuje izmjene. **Izađi**, **Odustani** i napuštanje
+uređivača odbacuju sve nesačuvane izmjene. Isto važi za vidljivost, tekstove,
+fotografije, nove cjeline i brisanje; nijedna od tih radnji ne šalje zahtjev
+za trajno čuvanje prije potvrde.
+Ako potvrđeno čuvanje stane na grešci, uređivač ostaje otvoren, prikazuje
+grešku i zadržava preostale izmjene. Već uspješno sačuvani koraci se ne
+dupliraju pri ponovnom pokušaju. Više zahtjeva nije jedna transakcija:
+poruka o grešci izričito navodi ako je dio potvrđenih izmjena već sačuvan.
 Soba drugog korisnika nije cilj ovog zahtjeva, čak ni ako se pošalje tuđi ID.
 
 Gosti u tuđoj sobi nemaju kontrolu za uređivanje. Registrovani gost može
