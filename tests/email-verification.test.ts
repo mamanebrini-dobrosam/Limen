@@ -43,6 +43,24 @@ describe("Verifikacijski linkovi", () => {
 });
 
 describe("Produkcijski email nema razvojni fallback", () => {
+  it("obični razvoj skriva testni sandučić i bez SMTP-a ne glumi dostavu niti potvrđuje postojeći nalog", async () => {
+    const existing = await newUser(ctx, { verify: false });
+    const saved = config.isTest;
+    config.isTest = false;
+    try {
+      const anonymous = new Client(ctx);
+      expect((await anonymous.get("/api/dev/outbox")).status).toBe(404);
+      expect((await existing.get("/api/dev/outbox")).status).toBe(404);
+      const retry = await existing.post("/api/auth/resend-verification");
+      expect(retry.status).toBe(503);
+      expect(retry.body.error).toBe("email_unavailable");
+      expect((await existing.get("/api/me")).body.user.emailVerified).toBe(false);
+      await expect(sendMail("synthetic@example.test", "test", "not a real verification link")).rejects.toMatchObject({ status: 503 });
+    } finally {
+      config.isTest = saved;
+    }
+  });
+
   it("traži SMTP, stvarnog pošiljaoca i javni HTTPS URL, bez ispisa vrijednosti", () => {
     expect(productionMailErrors({ isProd: true, smtpUrl: "", mailFrom: "LIMEN <no-reply@limen.local>", appUrl: "http://localhost:5000" }))
       .toEqual(["SMTP_URL", "MAIL_FROM", "APP_URL"]);

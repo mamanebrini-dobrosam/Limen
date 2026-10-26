@@ -236,10 +236,10 @@ meRouter.delete("/", ah(async (req, res) => {
   res.json({ ok: true });
 }));
 
-// ---------- Samo za razvoj: pregled poslanih emailova ----------
+// ---------- Samo za izolovane automatske testove: pregled testnih poruka ----------
 export const devRouter = Router();
 devRouter.get("/outbox", ah(async (req, res) => {
-  if (config.isProd) throw notFound();
+  if (!config.isTest || config.isProd) throw notFound();
   const to = typeof req.query.to === "string" ? req.query.to.toLowerCase() : undefined;
   const rows = await db.select().from(s.devOutbox).where(to ? eq(s.devOutbox.to, to) : undefined).orderBy(desc(s.devOutbox.createdAt)).limit(20);
   res.json({ emails: rows });

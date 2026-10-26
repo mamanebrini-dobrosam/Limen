@@ -36,7 +36,7 @@ const smtp = smtpSettings(config);
 const transport = smtp.options ? nodemailer.createTransport(smtp.options) : null;
 
 export function ensureMailAvailable() {
-  if (mailConfigurationErrors(config).length) {
+  if (mailConfigurationErrors(config).length || (!config.isTest && !transport)) {
     throw new HttpError(503, "email_unavailable", "Slanje emaila trenutno nije dostupno. Pokušaj kasnije.");
   }
 }
@@ -52,13 +52,14 @@ export async function sendMail(to: string, subject: string, body: string) {
     }
     return;
   }
-  // Development-only outbox. Do not print token-bearing mail into server logs.
-  if (!config.isProd) {
+  // Synthetic tests only: an outbox is not proof of ownership of a real address.
+  // Do not print token-bearing mail into server logs.
+  if (config.isTest && !config.isProd) {
     await db.insert(schema.devOutbox).values({ to, subject, body });
     if (!config.isTest) console.log("[DEV EMAIL] Poruka je sačuvana u razvojnom sandučiću.");
     return;
   }
-  // Production must never fall back to development outbox or token-bearing logs.
+  // Neither normal preview nor production may simulate delivery to real users.
   throw new HttpError(503, "email_unavailable", "Slanje emaila trenutno nije dostupno.");
 }
 

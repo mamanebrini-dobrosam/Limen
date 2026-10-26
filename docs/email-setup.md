@@ -64,8 +64,21 @@ znakova u ključu.
 - URL parametri ne mogu isključiti TLS ili uključiti debug ispis lozinki.
 - Djelimična/neispravna SMTP konfiguracija vraća jasnu grešku, bez tihog
   prebacivanja na razvojni sandučić.
-- Produkcija bez ispravnih email postavki odbija slanje. Razvojni sandučić
-  nije dostupan u produkciji. Linkovi i sadržaj poruka ne ispisuju se u log.
+- Obični Preview i produkcija bez ispravnih email postavki odbijaju slanje;
+  ne prijavljuju uspjeh ako poruka nije stvarno predata servisu.
+- Sandučić s testnim porukama dostupan je samo automatskim testovima u
+  odvojenoj testnoj bazi, ne u običnom Previewu niti produkciji.
+  Linkovi i sadržaj poruka ne ispisuju se u log.
+
+## Sigurno ručno testiranje u Previewu
+
+Postojeći nalog ostaje sačuvan i nepotvrđen dok vlasnik ne otvori stvarnu
+poruku u svom email sandučiću. Nakon unosa SMTP podataka ponovo pokreni
+aplikaciju, prijavi se postojećim nalogom i odaberi **Pošalji link ponovo**.
+Ne registruj isti nalog iznova i ne koristi sadržaj testnog sandučića za
+potvrdu stvarne adrese. Razvojni URL se koristi za Preview; nije potrebno
+javno objavljivanje. Automatski testovi koriste zasebnu bazu i izmišljene
+adrese, nikada korisnički nalog.
 
 ## Provjera bez izlaganja podataka
 
