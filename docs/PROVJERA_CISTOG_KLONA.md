@@ -49,10 +49,21 @@ pg_ctl -D "$PGTEST_DIR" stop
 ```
 
 Ako je port 55432 zauzet, izabrati drugi slobodan lokalni port i uskladiti
-sve četiri reference na port. Ovaj primjer ne traži stvarne SMTP ključeve,
+sva mjesta na kojima se koristi port. Ovaj primjer ne traži stvarne SMTP ključeve,
 ne potvrđuje stvarne naloge i ne dira produkciju. Testni SMTP podaci su
 namjerno isključeni u `vitest.config.ts`.
 
 Za pregledničke testove dodatno je potreban kompatibilan Chromium; koristi se
 `npm run test:browser`. Emulacija Android/iPhone dimenzija u Chromiumu nije
 zamjena za fizičke uređaje niti za Safari na iPhoneu.
+
+## Originalna slika potrebna testu
+
+`tests/room-palettes.test.ts` poredi piksele 12 izrezanih varijanti s
+originalnom, neoznačenom slikom:
+
+`attached_assets/0_Limen_Logo-Farbpalette_im_Raster_(1)_1793015058984.png`
+
+Slika je sada verzionisana uprkos lokalnom globalnom pravilu ignorisanja
+`attached_assets`. Nije obrađivana, kompresovana, preimenovana ili zamijenjena.
+Nije promijenjen logo koji aplikacija prikazuje.
