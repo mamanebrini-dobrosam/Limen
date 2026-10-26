@@ -4,7 +4,8 @@ import { runMigrations } from "./db/migrate.js";
 import { startSweeper } from "./services/sessions.js";
 import { cleanupRateLimits } from "./lib/infra.js";
 
-await runMigrations();
+// Replit applies the development schema to its managed database when publishing.
+if (!config.isProd) await runMigrations();
 const { server } = createServer();
 startSweeper();
 setInterval(() => { cleanupRateLimits().catch(() => {}); }, 3600_000);

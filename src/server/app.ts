@@ -30,10 +30,13 @@ export function createApp() {
         styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
         fontSrc: ["'self'", "https://fonts.gstatic.com"],
         connectSrc: ["'self'", "ws:", "wss:"],
-        frameAncestors: ["'none'"],
+        frameAncestors: config.isProd ? ["'none'"] : [
+          "'self'", "https://replit.com", "https://*.replit.com", "https://*.replit.dev",
+        ],
       },
     },
     crossOriginEmbedderPolicy: false,
+    frameguard: config.isProd ? { action: "deny" } : false,
   }));
   app.use(cookieParser());
   app.use(express.json({ limit: "100kb" }));

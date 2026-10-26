@@ -16,7 +16,8 @@ export const config = {
   isTest: env.NODE_ENV === "test",
   port: int("PORT", 5000),
   databaseUrl: env.DATABASE_URL ?? "postgres://postgres@localhost:5432/limen?host=/tmp",
-  appUrl: env.APP_URL ?? "http://localhost:5173",
+  appUrl: env.APP_URL ?? (env.NODE_ENV !== "production" && env.REPLIT_DEV_DOMAIN
+    ? `https://${env.REPLIT_DEV_DOMAIN}` : "http://localhost:5173"),
   storageDir: env.STORAGE_DIR ?? "storage",
   adminEmails: (env.ADMIN_EMAILS ?? "").split(",").map((s) => s.trim().toLowerCase()).filter(Boolean),
   smtpUrl: env.SMTP_URL ?? "",
