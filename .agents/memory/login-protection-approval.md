@@ -7,6 +7,8 @@ The owner approved displaying remaining lockout time, with no automatic login
 attempts. They explicitly require additional approval before changing limits
 or security rules, including how successful logins count and how different
 users on one network share attempt counters.
+Do not change login limits until the owner has seen the real Wi-Fi/mobile
+IP comparison. Simulated forwarded headers are not that evidence.
 
 **Why:** The owner wants to avoid unnecessarily blocking host and guest during
 normal testing without silently weakening protection.

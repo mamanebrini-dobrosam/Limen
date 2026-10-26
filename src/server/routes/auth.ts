@@ -13,9 +13,14 @@ import * as rules from "../services/rules.js";
 import { deleteAssetFile } from "../lib/media.js";
 import { exportDirectData } from "../services/direct-chat.js";
 import { exportVisitorData } from "../services/visitor-chat.js";
+import { createLoginIpDiagnostic } from "../lib/login-ip-diagnostic.js";
 
 const s = schema;
 export const authRouter = Router();
+const logSuccessfulLoginIp = createLoginIpDiagnostic({
+  environment: config.env,
+  enabled: process.env.LIMEN_LOGIN_IP_DIAGNOSTICS === "1",
+});
 
 const email = z.string().trim().toLowerCase().email().max(254);
 const password = z.string().min(10, "Lozinka mora imati najmanje 10 znakova.").max(200);
@@ -110,6 +115,7 @@ authRouter.post("/login", ah(async (req, res) => {
   if (!u || !ok) throw new HttpError(401, "bad_credentials", "Pogrešan email ili lozinka.");
   const sess = await createSession(u.id, req.get("user-agent"));
   setSessionCookie(res, sess.token, sess.expiresAt);
+  logSuccessfulLoginIp(req);
   res.json({ user: publicUser(u) });
 }));
 

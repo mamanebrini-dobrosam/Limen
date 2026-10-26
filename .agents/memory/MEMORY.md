@@ -6,3 +6,4 @@
 - [Real email ownership](email-ownership.md) — never unblock a real account through test mail or a manual verified flag; require actual mailbox delivery.
 - [Profile editor saving](profile-editor-exit.md) — no autosave; explicit save confirms all draft changes, while exit/cancel discards them and the palette starts hidden.
 - [Login protection approval](login-protection-approval.md) — only passive countdown is approved; changing attempt counters, limits or network lockout policy needs additional owner approval.
+- [Test process lifetime](test-process-lifetime.md) — long-lived test dependencies need managed background tasks; detached children of a foreground shell may not survive.
