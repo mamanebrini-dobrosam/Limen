@@ -54,6 +54,11 @@ export const config = {
   rateLimitsEnabled: env.RATE_LIMITS_ENABLED !== "false",
   limits: {
     login: [int("RL_LOGIN", 5), 15 * 60],
+    // Prijava: broje se samo NEUSPJELI pokušaji; uspješna prijava poništava brojač za taj nalog s te mreže.
+    loginFailAccountIp: [int("RL_LOGIN_FAIL_ACCOUNT_IP", 5), 15 * 60],
+    loginFailAccount: [int("RL_LOGIN_FAIL_ACCOUNT", 20), 60 * 60],
+    // Zaštita od preplavljivanja s jedne adrese (svi pokušaji, i uspješni).
+    loginIp: [int("RL_LOGIN_IP", 100), 15 * 60],
     register: [int("RL_REGISTER", 3), 60 * 60],
     contactRequest: [int("RL_CONTACT_REQUEST", 20), 24 * 60 * 60],
     invite: [int("RL_INVITE", 30), 60 * 60],

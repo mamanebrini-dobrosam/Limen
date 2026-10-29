@@ -6,21 +6,16 @@ import crypto from "node:crypto";
 import { config } from "../config.js";
 import { db, schema } from "../db/client.js";
 import { HttpError, ah, ageOn, bad, randomToken, sha256, unauthorized, conflict, notFound } from "../lib/core.js";
-import { rateLimit, sendMail, hub, ensureMailAvailable } from "../lib/infra.js";
+import { rateLimit, rateLimitCheck, rateLimitRecord, rateLimitReset, sendMail, hub, ensureMailAvailable } from "../lib/infra.js";
 import { createSession, setSessionCookie, requireUser, me, SESSION_COOKIE } from "../lib/auth.js";
 import { closeSession, endSeat } from "../services/sessions.js";
 import * as rules from "../services/rules.js";
 import { deleteAssetFile } from "../lib/media.js";
 import { exportDirectData } from "../services/direct-chat.js";
 import { exportVisitorData } from "../services/visitor-chat.js";
-import { createLoginIpDiagnostic } from "../lib/login-ip-diagnostic.js";
 
 const s = schema;
 export const authRouter = Router();
-const logSuccessfulLoginIp = createLoginIpDiagnostic({
-  environment: config.env,
-  enabled: process.env.LIMEN_LOGIN_IP_DIAGNOSTICS === "1",
-});
 
 const email = z.string().trim().toLowerCase().email().max(254);
 const password = z.string().min(10, "Lozinka mora imati najmanje 10 znakova.").max(200);
@@ -108,14 +103,21 @@ authRouter.post("/resend-verification", requireUser, ah(async (req, res) => {
 
 authRouter.post("/login", ah(async (req, res) => {
   const body = z.object({ email, password: z.string().min(1).max(200) }).parse(req.body);
-  await rateLimit("login", `ip:${req.ip}`);
-  await rateLimit("login", `email:${body.email}`);
+  const accountIp = `${body.email}|${req.ip}`;
+  await rateLimit("loginIp", `${req.ip}`);
+  await rateLimitCheck("loginFailAccountIp", accountIp);
+  await rateLimitCheck("loginFailAccount", body.email);
   const [u] = await db.select().from(s.users).where(eq(s.users.email, body.email)).limit(1);
   const ok = await verify(u?.passwordHash ?? DUMMY_HASH, body.password);
-  if (!u || !ok) throw new HttpError(401, "bad_credentials", "Pogrešan email ili lozinka.");
+  if (!u || !ok) {
+    // Isto ponašanje bez obzira da li nalog postoji (ne otkriva se postojanje naloga).
+    await rateLimitRecord("loginFailAccountIp", accountIp);
+    await rateLimitRecord("loginFailAccount", body.email);
+    throw new HttpError(401, "bad_credentials", "Pogrešan email ili lozinka.");
+  }
+  await rateLimitReset("loginFailAccountIp", accountIp);
   const sess = await createSession(u.id, req.get("user-agent"));
   setSessionCookie(res, sess.token, sess.expiresAt);
-  logSuccessfulLoginIp(req);
   res.json({ user: publicUser(u) });
 }));
 

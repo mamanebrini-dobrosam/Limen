@@ -27,6 +27,38 @@ export async function rateLimit(bucket: keyof typeof config.limits | string, sub
   }
 }
 
+// Brojači za neuspjele pokušaje (prijava): provjera bez brojanja, brojanje samo neuspjeha, poništavanje nakon uspjeha.
+function rateWindow(bucket: string) {
+  const lim = config.limits[bucket];
+  if (!lim) throw new Error(`Nepoznat limit: ${bucket}`);
+  const [max, windowSec] = lim;
+  const nowSec = Math.floor(Date.now() / 1000);
+  const windowStartSec = nowSec - (nowSec % windowSec);
+  return { max, windowStartSec, retryAfter: windowStartSec + windowSec - nowSec };
+}
+
+export async function rateLimitCheck(bucket: string, subject: string) {
+  if (!config.rateLimitsEnabled) return;
+  const w = rateWindow(bucket);
+  const r = await db.execute<{ count: number }>(sql`
+    select count from rate_limits where key = ${`${bucket}:${subject}`} and window_start = to_timestamp(${w.windowStartSec})`);
+  if (Number(r.rows[0]?.count ?? 0) >= w.max) {
+    throw new HttpError(429, "rate_limited", "Previše pokušaja. Pokušaj ponovo kasnije.", { retryAfter: w.retryAfter });
+  }
+}
+
+export async function rateLimitRecord(bucket: string, subject: string) {
+  if (!config.rateLimitsEnabled) return;
+  const w = rateWindow(bucket);
+  await db.execute(sql`
+    insert into rate_limits (key, window_start, count) values (${`${bucket}:${subject}`}, to_timestamp(${w.windowStartSec}), 1)
+    on conflict (key, window_start) do update set count = rate_limits.count + 1`);
+}
+
+export async function rateLimitReset(bucket: string, subject: string) {
+  await db.execute(sql`delete from rate_limits where key = ${`${bucket}:${subject}`}`);
+}
+
 export async function cleanupRateLimits() {
   await db.execute(sql`delete from rate_limits where window_start < now() - interval '2 days'`);
 }
